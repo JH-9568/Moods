@@ -1,0 +1,42 @@
+name: moods
+description: A new Flutter project.
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.8.1 <3.9.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  go_router: ^14.0.0
+  cupertino_icons: ^1.0.8
+  flutter_svg: ^2.0.7
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/fonts/icons/home.svg
+    - assets/fonts/icons/home_selected.svg
+    - assets/fonts/icons/thumb.svg
+    - assets/fonts/icons/thumb_selected.svg
+    - assets/fonts/icons/map.svg
+    - assets/fonts/icons/map_selected.svg
+    - assets/fonts/
+
+  fonts:
+    - family: Pretendard
+      fonts:
+        - asset: assets/fonts/Pretendard-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Pretendard-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Pretendard-Bold.ttf
+          weight: 700
