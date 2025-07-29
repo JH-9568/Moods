@@ -3,6 +3,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter/foundation.dart';
+import 'package:moods/features/auth/view/Terms_Agreement_Screen.dart';
+import 'package:moods/features/auth/view/complete_sign_up_screen.dart';
+import 'package:moods/features/auth/view/kakao_sign_up.dart';
+import 'package:moods/features/auth/view/register_screen.dart';
+import 'package:moods/features/auth/view/start_screen.dart';
 
 // 공통 위젯
 import '../common/widgets/custom_bottom_nav.dart';
@@ -15,40 +20,51 @@ import '../features/map/view/map_screen.dart';
 
 class AppRouter {
   static final router = GoRouter(
-    initialLocation: '/home',
+    initialLocation: '/terms',
     routes: [
-      ShellRoute(
-        builder: (context, state, child) {
-          debugPrint('ShellRoute builder called. Current path: ${state.uri}');
 
-          return Scaffold(
-            extendBodyBehindAppBar: true, // ⭐️ 이 속성을 추가합니다.
-            appBar: const CustomAppBar(), // ✅ 고정 AppBar
-            body: child, // 현재 활성 화면 (GoRoute 하위)
-            bottomNavigationBar: const CustomBottomNav(), // 고정 BottomNav
-          );
-        },
+      // ✅ 로그인/회원가입 흐름
+      GoRoute(
+        path: '/start',
+        builder: (context, state) => const StartScreen(),
+      ),
+      GoRoute(
+        path: '/register',
+        builder: (context, state) => const RegisterScreen(),
+      ),
+      GoRoute(
+        path: '/kakao',
+        builder: (context, state) => const AdditionalInfoScreen(),
+      ),
+      GoRoute(
+        path: '/terms',
+        builder: (context, state) => const TermsAgreementScreen(),
+      ),
+      GoRoute(
+        path: '/complete',
+        builder: (context, state) => const SignUpCompleteScreen(),
+      ),
+
+      // ✅ 메인 앱 구조 (ShellRoute로 감싸기)
+      ShellRoute(
+        builder: (context, state, child) => Scaffold(
+          extendBodyBehindAppBar: true,
+          appBar: const CustomAppBar(),
+          body: child,
+          bottomNavigationBar: const CustomBottomNav(),
+        ),
         routes: [
           GoRoute(
             path: '/home',
-            builder: (context, state) {
-              debugPrint('Navigating to HomeScreen');
-              return const HomeScreen();
-            },
+            builder: (context, state) => const HomeScreen(),
           ),
           GoRoute(
             path: '/explore',
-            builder: (context, state) {
-              debugPrint('Navigating to ExploreScreen');
-              return const ExploreScreen();
-            },
+            builder: (context, state) => const ExploreScreen(),
           ),
           GoRoute(
             path: '/map',
-            builder: (context, state) {
-              debugPrint('Navigating to MapScreen');
-              return const MapScreen();
-            },
+            builder: (context, state) => const MapScreen(),
           ),
         ],
       ),
