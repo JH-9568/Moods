@@ -1,51 +1,51 @@
-// ✅ lib/routes/app_router.dart
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:flutter/foundation.dart';
-import 'package:moods/features/auth/view/Terms_Agreement_Screen.dart';
-import 'package:moods/features/auth/view/complete_sign_up_screen.dart';
-import 'package:moods/features/auth/view/kakao_sign_up.dart';
-import 'package:moods/features/auth/view/register_screen.dart';
+
+// ✅ 로그인/회원가입 관련 화면
 import 'package:moods/features/auth/view/start_screen.dart';
+import 'package:moods/features/auth/view/register_screen.dart';
+import 'package:moods/features/auth/view/kakao_sign_up.dart';
+import 'package:moods/features/auth/view/terms_agreement_screen.dart';
+import 'package:moods/features/auth/view/complete_sign_up_screen.dart';
 
-// 공통 위젯
-import '../common/widgets/custom_bottom_nav.dart';
-import '../common/widgets/custom_app_bar.dart'; // ✅ 앱바 추가
+// ✅ 메인 화면들
+import 'package:moods/features/home/view/home_screen.dart';
+import 'package:moods/features/explore/view/explore_screen.dart';
+import 'package:moods/features/map/view/map_screen.dart';
 
-// 화면
-import '../features/home/view/home_screen.dart';
-import '../features/explore/view/explore_screen.dart';
-import '../features/map/view/map_screen.dart';
+// ✅ 공통 위젯
+import 'package:moods/common/widgets/custom_app_bar.dart';
+import 'package:moods/common/widgets/custom_bottom_nav.dart';
 
 class AppRouter {
   static final router = GoRouter(
-    initialLocation: '/terms',
+    initialLocation: '/start', // 앱 첫 진입 시 시작화면
     routes: [
 
-      // ✅ 로그인/회원가입 흐름
+      // ────────────── 로그인/회원가입 ──────────────
       GoRoute(
         path: '/start',
         builder: (context, state) => const StartScreen(),
       ),
       GoRoute(
-        path: '/register',
+        path: '/register', // 일반 회원가입 입력
         builder: (context, state) => const RegisterScreen(),
       ),
       GoRoute(
-        path: '/kakao',
+        path: '/kakao', // 카카오 로그인 후 추가 정보 입력
         builder: (context, state) => const AdditionalInfoScreen(),
       ),
       GoRoute(
-        path: '/terms',
+        path: '/terms', // 약관 동의 화면
         builder: (context, state) => const TermsAgreementScreen(),
       ),
       GoRoute(
-        path: '/complete',
+        path: '/complete', // 회원가입 완료 화면
         builder: (context, state) => const SignUpCompleteScreen(),
       ),
+      
 
-      // ✅ 메인 앱 구조 (ShellRoute로 감싸기)
+      // ────────────── 메인 앱 (하단 네비 포함) ──────────────
       ShellRoute(
         builder: (context, state, child) => Scaffold(
           extendBodyBehindAppBar: true,
