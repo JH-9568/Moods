@@ -3,7 +3,7 @@ import 'colors.dart';
 
 final ThemeData appTheme = ThemeData(
   fontFamily: 'Pretendard',
-  scaffoldBackgroundColor: AppColors.back,
+  scaffoldBackgroundColor: AppColors.background,
   primaryColor: AppColors.main,
   textTheme: const TextTheme(
     displayLarge: TextStyle(fontSize: 26, fontWeight: FontWeight.w700), // 제목

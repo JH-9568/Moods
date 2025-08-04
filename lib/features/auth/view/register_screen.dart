@@ -1,4 +1,3 @@
-// register_screen.dart
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -28,6 +27,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   String? verificationId;
 
   Timer? _verificationTimer;
+
+  final GlobalKey _domainKey = GlobalKey();
 
   @override
   void initState() {
@@ -101,7 +102,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             );
           }
         }
-      } catch (e) {}
+      } catch (_) {}
     });
   }
 
@@ -172,7 +173,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     if (mounted) context.go('/terms');
   }
 
-
   Widget _buildTextField(TextEditingController controller, String hint, {bool obscure = false, TextInputType? keyboardType}) {
     return TextField(
       controller: controller,
@@ -190,47 +190,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     );
   }
 
-  Widget _buildGenderSelector() {
-    return Container(
-      height: 48,
-      decoration: BoxDecoration(
-        border: Border.all(color: const Color(0xFFE9E8F1), width: 1),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          _genderButton('남성'),
-          Container(width: 1, height: double.infinity, color: const Color(0xFFE9E8F1)),
-          _genderButton('여성'),
-        ],
-      ),
-    );
-  }
-
-  Widget _genderButton(String gender) {
-    final isSelected = selectedGender == gender;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() => selectedGender = gender),
-        child: Container(
-          decoration: BoxDecoration(
-            color: isSelected ? AppColors.main : Colors.white,
-            borderRadius: gender == '남성'
-                ? const BorderRadius.only(topLeft: Radius.circular(12), bottomLeft: Radius.circular(12))
-                : const BorderRadius.only(topRight: Radius.circular(12), bottomRight: Radius.circular(12)),
-          ),
-          alignment: Alignment.center,
-          child: Text(gender, style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w500)),
-        ),
-      ),
-    );
-  }
-
   InputDecoration _inputDecoration(String hint) {
     return InputDecoration(
       hintText: hint,
       filled: true,
-      fillColor: Colors.white,
+      fillColor: AppColors.white,
       isDense: true,
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
       border: OutlineInputBorder(
@@ -248,23 +212,125 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     );
   }
 
-  InputDecoration _dropdownDecoration() {
-    return InputDecoration(
-      filled: true,
-      fillColor: Colors.white,
-      isDense: true,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.border, width: 1),
+  Widget _buildEmailDomainSelector() {
+    final fullDomainList = ['직접입력', 'naver.com', 'gmail.com', 'daum.net', 'nate.com'];
+    final filteredDomainList = fullDomainList.where((domain) => domain != selectedDomain).toList();
+
+    return GestureDetector(
+      key: _domainKey,
+      onTap: () async {
+        final RenderBox renderBox = _domainKey.currentContext?.findRenderObject() as RenderBox;
+        final offset = renderBox.localToGlobal(Offset.zero);
+        final size = renderBox.size;
+        
+        final selected = await showMenu<String>(
+          context: context,
+          position: RelativeRect.fromLTRB(
+            offset.dx,
+            offset.dy + size.height,
+            offset.dx + size.width,
+            offset.dy + size.height,
+          ),
+          constraints: BoxConstraints(minWidth: size.width, maxWidth: size.width),
+          color: AppColors.gray1,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+            side: BorderSide(color: AppColors.border),
+          ),
+          elevation: 0,
+          items: filteredDomainList.map((domain) {
+            return PopupMenuItem<String>(
+              value: domain,
+              padding: EdgeInsets.zero,
+              child: Container(
+                height: 40,
+                width: double.infinity,
+                alignment: Alignment.centerLeft,
+                margin: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                child: Text(
+                  domain,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: AppColors.grayText,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        );
+
+        if (selected != null) {
+          setState(() {
+            selectedDomain = selected;
+            if (selected == '직접입력') {
+              emailCustomDomainController.clear();
+            }
+          });
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        decoration: BoxDecoration(
+          border: Border.all(color: AppColors.border),
+          borderRadius: BorderRadius.circular(8),
+          color: AppColors.white,
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: selectedDomain == '직접입력'
+                  ? TextField(
+                      controller: emailCustomDomainController,
+                      decoration: const InputDecoration.collapsed(hintText: '직접입력'),
+                      style: const TextStyle(fontSize: 14),
+                      onChanged: (_) => setState(() {}),
+                    )
+                  : Text(
+                      selectedDomain,
+                      style: const TextStyle(fontSize: 14),
+                    ),
+            ),
+            const Icon(Icons.keyboard_arrow_down, color: AppColors.grayText),
+          ],
+        ),
       ),
-      enabledBorder: OutlineInputBorder(
+    );
+  }
+
+  Widget _buildGenderSelector() {
+    return Container(
+      height: 48,
+      decoration: BoxDecoration(
+        border: Border.all(color: AppColors.border, width: 1),
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.border, width: 1),
       ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.border, width: 2),
+      child: Row(
+        children: [
+          _genderButton('남성'),
+          Container(width: 1, height: double.infinity, color: AppColors.border),
+          _genderButton('여성'),
+        ],
+      ),
+    );
+  }
+
+  Widget _genderButton(String gender) {
+    final isSelected = selectedGender == gender;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => selectedGender = gender),
+        child: Container(
+          decoration: BoxDecoration(
+            color: isSelected ? AppColors.main : AppColors.white,
+            borderRadius: gender == '남성'
+                ? const BorderRadius.only(topLeft: Radius.circular(12), bottomLeft: Radius.circular(12))
+                : const BorderRadius.only(topRight: Radius.circular(12), bottomRight: Radius.circular(12)),
+          ),
+          alignment: Alignment.center,
+          child: Text(gender, style: const TextStyle(color: AppColors.black, fontWeight: FontWeight.w500)),
+        ),
       ),
     );
   }
@@ -284,12 +350,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        centerTitle: true,
-        leading: const BackButton(color: Colors.black),
-        title: const Text('회원가입', style: TextStyle(color: Colors.black)),
-      ),
+  backgroundColor: AppColors.background,
+  elevation: 0,
+  centerTitle: true,
+  leading: IconButton(
+    icon: const Icon(Icons.arrow_back_ios_new, color: AppColors.black),
+    onPressed: () {
+      context.go('/start'); 
+    },
+  ),
+  title: const Text('회원가입', style: TextStyle(color: AppColors.black)),
+),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
@@ -306,58 +377,27 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               children: [
                 Expanded(flex: 2, child: _buildTextField(emailIdController, '이메일')),
                 const Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text('@')),
-                Expanded(
-                  flex: 2,
-                  child: DropdownButtonFormField<String>(
-                    value: selectedDomain,
-                    onChanged: (v) {
-                      setState(() {
-                        selectedDomain = v ?? '';
-                        if (v != '직접입력') {
-                          emailCustomDomainController.text = v ?? '';
-                        } else {
-                          emailCustomDomainController.clear();
-                        }
-                      });
-                    },
-                    decoration: _dropdownDecoration(),
-                    icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
-                    dropdownColor: Colors.white,
-                    isExpanded: true,
-                    items: [
-                      '직접입력',
-                      'naver.com',
-                      'gmail.com',
-                      'daum.net',
-                      'nate.com'
-                    ].map((d) => DropdownMenuItem(value: d, child: Text(d))).toList(),
-                  ),
-                ),
+                Expanded(flex: 2, child: _buildEmailDomainSelector()),
               ],
             ),
-            if (selectedDomain == '직접입력')
-              Padding(
-                padding: const EdgeInsets.only(top: 8.0),
-                child: _buildTextField(emailCustomDomainController, '도메인을 입력해주세요'),
-              ),
             const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: emailIdController.text.isNotEmpty &&
+                    onPressed: !isVerified && emailIdController.text.isNotEmpty &&
                             (selectedDomain != '직접입력' || emailCustomDomainController.text.isNotEmpty)
                         ? _handleEmailVerification
                         : null,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: (emailIdController.text.isNotEmpty &&
+                      backgroundColor: !isVerified && (emailIdController.text.isNotEmpty &&
                               (selectedDomain != '직접입력' || emailCustomDomainController.text.isNotEmpty))
-                          ? const Color(0xFFA7B3F1)
-                          : const Color(0xFFD0D6E1),
-                      foregroundColor: Colors.white,
+                          ? AppColors.main
+                          : AppColors.unchecked,
+                      foregroundColor: AppColors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    child: Text(isVerified ? '확인 완료' : (isVerificationSent ? '인증번호 재전송' : '인증번호 요청')),
+                    child: Text(isVerificationSent ? '인증번호 재전송' : '인증번호 요청'),
                   ),
                 ),
               ],
@@ -367,22 +407,21 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 padding: EdgeInsets.only(top: 8.0),
                 child: Text(
                   '이메일에서 인증 버튼을 클릭해 주세요',
-                  style: TextStyle(fontSize: 12, color: Color(0xFF4558C1)),
+                  style: TextStyle(fontSize: 12, color: AppColors.main),
                 ),
               ),
             const SizedBox(height: 16),
             _buildLabeledField('비밀번호', _buildTextField(passwordController, '8~20자 영문, 숫자의 조합으로 입력해 주세요', obscure: true)),
             const SizedBox(height: 16),
             _buildLabeledField('비밀번호 확인', _buildTextField(passwordConfirmController, '비밀번호 확인', obscure: true)),
-            if (passwordConfirmController.text.isNotEmpty &&
-    passwordConfirmController.text != passwordController.text)
-  const Padding(
-    padding: EdgeInsets.only(top: 8.0),
-    child: Text(
-      '비밀번호가 일치하지 않습니다.',
-      style: TextStyle(fontSize: 12, color: Color(0xFF4558C1)),
-    ),
-  ),
+            if (passwordConfirmController.text.isNotEmpty && passwordConfirmController.text != passwordController.text)
+              const Padding(
+                padding: EdgeInsets.only(top: 8.0),
+                child: Text(
+                  '비밀번호가 일치하지 않습니다.',
+                  style: TextStyle(fontSize: 12, color: AppColors.main),
+                ),
+              ),
             const SizedBox(height: 16),
             _buildLabeledField('닉네임', _buildTextField(nicknameController, '예시')),
             const SizedBox(height: 16),
@@ -399,7 +438,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 onPressed: isNextEnabled ? _onSubmit : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: isNextEnabled ? AppColors.main : AppColors.unchecked,
-                  foregroundColor: Colors.white,
+                  foregroundColor: AppColors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
                 ),
                 child: const Text('다음'),
