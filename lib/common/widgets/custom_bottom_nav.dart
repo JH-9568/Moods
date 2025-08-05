@@ -30,6 +30,12 @@ class CustomBottomNav extends StatelessWidget {
         'icon': 'assets/fonts/icons/map.svg',
         'selectedIcon': 'assets/fonts/icons/map_selected.svg',
       },
+      {
+        'label': '마이페이지',
+        'path': '/profile',
+        'icon': 'assets/fonts/icons/mypage.svg',
+        'selectedIcon': 'assets/fonts/icons/mypage_selected.svg',
+      },
     ];
 
     final currentIndex =

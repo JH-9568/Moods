@@ -17,10 +17,11 @@ import 'package:moods/features/map/view/map_screen.dart';
 // ✅ 공통 위젯
 import 'package:moods/common/widgets/custom_app_bar.dart';
 import 'package:moods/common/widgets/custom_bottom_nav.dart';
+import 'package:moods/features/profile/view/profile_screen.dart';
 
 class AppRouter {
   static final router = GoRouter(
-    initialLocation: '/start',
+    initialLocation: '/home',
     routes: [
 
       // ────────────── 로그인/회원가입 ──────────────
@@ -69,6 +70,10 @@ class AppRouter {
           GoRoute(
             path: '/map',
             builder: (context, state) => const MapScreen(),
+          ),
+          GoRoute(
+            path: '/profile',
+            builder: (context, state) => const ProfileScreen(),
           ),
         ],
       ),
