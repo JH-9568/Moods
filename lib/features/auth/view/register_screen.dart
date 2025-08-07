@@ -193,6 +193,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   InputDecoration _inputDecoration(String hint) {
     return InputDecoration(
       hintText: hint,
+      hintStyle: const TextStyle(color: Color.fromRGBO(175, 175, 175, 1)),
       filled: true,
       fillColor: AppColors.white,
       isDense: true,
@@ -222,7 +223,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         final RenderBox renderBox = _domainKey.currentContext?.findRenderObject() as RenderBox;
         final offset = renderBox.localToGlobal(Offset.zero);
         final size = renderBox.size;
-        
+
         final selected = await showMenu<String>(
           context: context,
           position: RelativeRect.fromLTRB(
@@ -283,7 +284,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               child: selectedDomain == '직접입력'
                   ? TextField(
                       controller: emailCustomDomainController,
-                      decoration: const InputDecoration.collapsed(hintText: '직접입력'),
+                      decoration: const InputDecoration.collapsed(
+                        hintText: '직접입력',
+                        hintStyle: TextStyle(color: Color.fromRGBO(175, 175, 175, 1)),
+                      ),
                       style: const TextStyle(fontSize: 14),
                       onChanged: (_) => setState(() {}),
                     )
