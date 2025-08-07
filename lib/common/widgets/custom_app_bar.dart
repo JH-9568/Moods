@@ -10,7 +10,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
     return Container(
       height: statusBarHeight + 70.0, // 전체 높이
-      color: const Color(0xFFD0D0FF),
+      color: AppColors.sub,
       padding: EdgeInsets.only(
         top: statusBarHeight + 12.0, // 상태바 아래 살짝 여백
         left: 20.0,

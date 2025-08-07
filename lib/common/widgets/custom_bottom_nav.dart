@@ -45,11 +45,18 @@ return Container(
   height: 87,
   padding: const EdgeInsets.symmetric(horizontal: 54, vertical: 12),
   decoration: BoxDecoration(
-    color: const Color(0xFFD0D0FF),
     borderRadius: const BorderRadius.only(
-      topLeft: Radius.circular(20),
-      topRight: Radius.circular(20),
+      topLeft: Radius.circular(17),
+      topRight: Radius.circular(17)
     ),
+    color: Colors.white,
+    boxShadow: [
+      BoxShadow(
+        color: Colors.black.withOpacity(0.1),
+        blurRadius: 8,
+        offset: const Offset(0, -2),
+      ),
+    ],
   ),
   child: Row(
     mainAxisAlignment: MainAxisAlignment.spaceBetween,
