@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:moods/common/constants/colors.dart';
+import 'package:moods/common/widgets/back_button.dart'; 
+import 'package:shared_preferences/shared_preferences.dart';
 
 class TermsAgreementScreen extends StatefulWidget {
   const TermsAgreementScreen({super.key});
@@ -39,7 +41,7 @@ class _TermsAgreementScreenState extends State<TermsAgreementScreen> {
       appBar: AppBar(
         backgroundColor: AppColors.background,
         title: const Text('회원가입'),
-        leading: const BackButton(color: Colors.black),
+        leading: const GlobalBackButton(),
         elevation: 0,
       ),
       body: Padding(
@@ -82,9 +84,12 @@ class _TermsAgreementScreenState extends State<TermsAgreementScreen> {
               height: 56,
               child: ElevatedButton(
                 onPressed: isAllChecked
-                    ? () {
-                  context.go('/complete');
-                }
+                    ? () async {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('terms_done', true); // ✅ 약관 동의 플래그 저장
+        if (!mounted) return;
+        context.go('/complete');                 // 원래 플로우: complete -> home
+      }
                     : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: isAllChecked

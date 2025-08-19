@@ -1,9 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:moods/common/constants/colors.dart';
-
 
 class SignUpCompleteScreen extends StatelessWidget {
   const SignUpCompleteScreen({super.key});
+
+  Future<void> _goHome(BuildContext context) async {
+    // 약관 동의 하드코딩 플래그 저장
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('terms_done', true);
+
+    if (!context.mounted) return;
+    context.go('/home');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -55,7 +65,7 @@ class SignUpCompleteScreen extends StatelessWidget {
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton(
-                  onPressed: () {},
+                  onPressed: () => _goHome(context),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: Colors.black,

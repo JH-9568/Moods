@@ -1,19 +1,22 @@
 name: moods
 description: A new Flutter project.
 publish_to: 'none'
-
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.8.1 <3.9.0'
+  sdk: '>=3.8.1 <4.0.0'   # 상한 너무 타이트했음. 3.9로 올라가면 바로 터짐.
 
 dependencies:
   flutter:
     sdk: flutter
+  supabase_flutter: ^2.9.1
+  shared_preferences: ^2.2.2
   go_router: ^14.0.0
   cupertino_icons: ^1.0.8
   flutter_svg: ^2.0.7
   flutter_riverpod: ^2.6.1
+  kakao_flutter_sdk_user: 1.6.0
+  kakao_flutter_sdk_auth: 1.6.0
 
 dev_dependencies:
   flutter_test:
@@ -30,6 +33,7 @@ flutter:
     - assets/fonts/icons/thumb_selected.svg
     - assets/fonts/icons/map.svg
     - assets/fonts/icons/map_selected.svg
+    - assets/fonts/icons/kakao.svg
     - assets/fonts/
 
   fonts:
