@@ -33,6 +33,9 @@ flutter:
     - assets/fonts/icons/thumb_selected.svg
     - assets/fonts/icons/map.svg
     - assets/fonts/icons/map_selected.svg
+    - assets/fonts/icons/mypage.svg
+    - assets/fonts/icons/mypage_selected.svg
+    - assets/fonts/icons/calender.svg
     - assets/fonts/icons/kakao.svg
     - assets/fonts/
 
