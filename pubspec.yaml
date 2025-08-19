@@ -33,6 +33,7 @@ flutter:
     - assets/fonts/icons/map_selected.svg
     - assets/fonts/icons/mypage.svg
     - assets/fonts/icons/mypage_selected.svg
+    - assets/fonts/icons/calender.svg
     - assets/fonts/
 
   fonts:
