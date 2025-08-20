@@ -4,6 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:moods/common/constants/colors.dart';
 import 'package:moods/common/constants/text_styles.dart';
 import 'package:moods/features/home/widget/my_moods/study_count_widget.dart';
+import 'package:moods/routes/app_router.dart';
+import 'package:go_router/go_router.dart';
+
+import 'package:moods/features/record/controller/record_controller.dart';
 
 /// 홈 화면의 "나만의 Moods" 카드 섹션
 /// 기존 _buildCard 블록을 분리한 재사용 위젯.
@@ -49,27 +53,33 @@ class MyMoodsSection extends StatelessWidget {
           const SizedBox(height: 30),
           
           // 공부 시작하기 버튼
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: ElevatedButton(
-              onPressed: onStartPressed,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.main,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: const Text(
-                '공부 시작하기',
-                style: TextStyle(
-                  fontSize: 18,
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ),
+SizedBox(
+  width: double.infinity,
+  height: 50,
+  child: ElevatedButton(
+    onPressed: () {
+      final now = DateTime.now();
+      final args = StartArgs(
+        mood: '조용한',                 // 기본값, 필요시 교체
+        goals: const ['예습'],         // 없으면 []
+        title: '${now.month}월 ${now.day}일 공부',
+        spaceId: 'ChIJ__-2a4h1YzUR6Z0u8pQXQLY', // 실제 값으로
+        emotion: '기쁨',
+        spaceFeature: const ['조용함'],
+      );
+      context.push('/record', extra: args);
+    },
+    style: ElevatedButton.styleFrom(
+      backgroundColor: AppColors.main,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+    ),
+    child: const Text(
+      '공부 시작하기',
+      style: TextStyle(fontSize: 18, color: Colors.white, fontWeight: FontWeight.w600),
+    ),
+  ),
+)
+
         ],
       ),
     );

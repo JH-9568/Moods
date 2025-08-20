@@ -17,6 +17,11 @@ import 'package:moods/features/explore/view/explore_screen.dart';
 import 'package:moods/features/map/view/map_screen.dart';
 import 'package:moods/common/widgets/custom_app_bar.dart';
 import 'package:moods/common/widgets/custom_bottom_nav.dart';
+// RecordTimerScreen
+import 'package:moods/features/record/view/record_timer_screen.dart';
+
+// StartArgs
+import 'package:moods/features/record/controller/record_controller.dart';
 
 class RouterPing extends ChangeNotifier {
   void ping() => notifyListeners();
@@ -137,6 +142,13 @@ GoRouter createAppRouter() {
       GoRoute(path: '/terms', builder: (_, __) => const TermsAgreementScreen()),
       GoRoute(path: '/complete', builder: (_, __) => const SignUpCompleteScreen()),
       GoRoute(path: '/reset-password', builder: (_, __) => const PasswordResetScreen()),
+      GoRoute(
+  path: '/record',
+  builder: (context, state) {
+    final args = state.extra as StartArgs;
+    return RecordTimerScreen(startArgs: args);
+  },
+),
       ShellRoute(
         builder: (_, __, child) => Scaffold(
           extendBodyBehindAppBar: true,
