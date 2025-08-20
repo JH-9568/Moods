@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- 개발 중 HTTP(평문) 허용. 배포 전엔 도메인 제한 권장 -->
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

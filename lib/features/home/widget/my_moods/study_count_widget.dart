@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:moods/common/constants/colors.dart';
 import 'package:moods/common/constants/text_styles.dart';
@@ -9,15 +8,31 @@ class StudyCountWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 25회 이후도 자연스럽게 표시되도록, 다음 5회 단위까지 범위를 확장
-    final int maxCap = math.max(25, ((studyCount + 4) ~/ 5) * 5);
-    final double ratio = (studyCount / maxCap).clamp(0.0, 1.0);
+    // 창(window) 시작은 항상 25의 배수: 0~24→0, 25~49→25, 50~74→50 ...
+    final int windowStart = (studyCount ~/ 25) * 25;
+    const int windowSpan = 25; // 항상 25 폭(0~25, 25~50 ...)
+
+    // 윈도우 내 진행도(0~25)
+    final int localProgress = studyCount - windowStart; // 0..25..
+    final bool isExactMultiple = studyCount % 5 == 0;   // 5의 배수 여부
+
+    // 스냅 기준(5의 배수)은 윈도우 안에서 계산 후, 다시 절대값으로 환산
+    final int anchorLocal = (localProgress ~/ 5) * 5;   // 7→5, 9→5, 10→10 (윈도우 기준)
+    final int anchorCount = windowStart + anchorLocal;  // 절대 카운트로 환산
+
+    // 썸(원) 위치: 배수면 anchor, 아니면 구간 중앙(anchor+2.5)
+    final double logicalCountForThumb = isExactMultiple ? anchorCount.toDouble() : (anchorCount + 2.5);
+
+    // 윈도우 내 비율
+    final double thumbRatio = ((logicalCountForThumb - windowStart) / windowSpan).clamp(0.0, 1.0);
+    // 레일 채움은 썸 위치까지
+    final double fillRatio = thumbRatio;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '나의 공부 횟수',
+          '나의 총 공부 횟수',
           style: AppTextStyles.bodyBold.copyWith(color: AppColors.text_color1),
         ),
         const SizedBox(height: 2),
@@ -27,6 +42,13 @@ class StudyCountWidget extends StatelessWidget {
           builder: (context, constraints) {
             final double railWidth = constraints.maxWidth * 0.93; // 레일 길이 조정
             final double railOffset = (constraints.maxWidth - railWidth) / 2; // 중앙 정렬을 위한 오프셋
+
+            const double railTail = 12.0; // px
+            final double usableRailWidth = railWidth - railTail; // 틱/채움/썸은 여기까지만 배치
+            // 페인터의 원 반지름과 동일한 인셋을 적용해 꼬리가 더 분명히 보이도록
+            const double tickInset = 6.0; // _StudyProgressPainter._tickRadius 와 동일
+            final double effectiveRailWidth = usableRailWidth - 2 * tickInset; // 틱/썸이 실제로 분포하는 가로 길이
+            final double baseX = railOffset + tickInset; // 첫 틱의 중심 X
 
             return SizedBox(
               height: 50, // 라벨 공간까지 포함한 전체 높이
@@ -48,7 +70,7 @@ class StudyCountWidget extends StatelessWidget {
                               for (int i = 0; i <= 5; i++)
                                 Builder(
                                   builder: (context) {
-                                    final double idealCenter = railOffset + (railWidth * (i / 5));
+                                    final double idealCenter = baseX + (effectiveRailWidth * (i / 5));
                                     final double left = (idealCenter - (labelWidth / 2))
                                         .clamp(0.0, constraints.maxWidth - labelWidth);
                                     // 라벨 박스는 부모 경계 내에 유지(clamp)하되, 텍스트는 내부에서 미세 이동시켜
@@ -65,7 +87,7 @@ class StudyCountWidget extends StatelessWidget {
                                             alignment: Alignment.bottomCenter,
                                             child: Padding(
                                               padding: const EdgeInsets.only(bottom: 1),
-                                              child: _buildLabel('${i * 5}회', i * 5, studyCount),
+                                              child: _buildLabel('${windowStart + i * 5}회', windowStart + i * 5, isExactMultiple ? studyCount : -1),
                                             ),
                                           ),
                                         ),
@@ -86,11 +108,97 @@ class StudyCountWidget extends StatelessWidget {
                     child: CustomPaint(
                       size: Size(railWidth, 32),
                       painter: _StudyProgressPainter(
-                        ratio: ratio,
+                        fillRatio: fillRatio,
+                        thumbRatio: thumbRatio,
                         studyCount: studyCount,
+                        windowStart: windowStart,
                       ),
                     ),
                   ),
+                  // 현재 카운트 라벨 (floating label)
+                  // - 숫자와 '회'를 각각 실측해, 두 텍스트의 경계(숫자와 '회' 사이)가 thumbCenter에 정확히 오도록 배치
+                  // - 고정 폭을 쓰지 않아서 '회'가 사라지거나 잘리는 문제 방지
+                  if (studyCount > 0 && !isExactMultiple)
+                    Positioned(
+                      top: 5,
+                      left: () {
+                        final TextStyle style = AppTextStyles.bodyBold.copyWith(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.main,
+                        );
+                        final String numText = '$studyCount';
+                        const String unitText = '회';
+
+                        // 숫자와 '회'를 각각 측정
+                        final TextPainter numTp = TextPainter(
+                          text: TextSpan(text: numText, style: style),
+                          textDirection: TextDirection.ltr,
+                        )..layout();
+                        final TextPainter unitTp = TextPainter(
+                          text: TextSpan(text: unitText, style: style),
+                          textDirection: TextDirection.ltr,
+                        )..layout();
+
+                        final double numericWidth = numTp.width;
+                        final double labelWidth = numericWidth + unitTp.width;
+
+                        // 썸(원) 중심
+                        final double tRatio = thumbRatio.isFinite ? thumbRatio : 0.0;
+                        final double idealCenter = baseX + (effectiveRailWidth * tRatio);
+
+                        // 문자열 전체의 중앙이 thumbCenter와 일치하도록: left = center - labelWidth/2
+                        double left = idealCenter - (labelWidth / 2);
+
+                        // 틱 밴드 내에서만 보이도록 클램프
+                        final double minLeft = baseX;
+                        final double maxLeft = baseX + effectiveRailWidth - labelWidth;
+                        if (left < minLeft) left = minLeft;
+                        if (left > maxLeft) left = maxLeft;
+                        return left;
+                      }(),
+                      child: SizedBox(
+                        // 실측 폭을 그대로 사용해 텍스트가 잘리지 않도록 함
+                        width: () {
+                          final TextStyle style = AppTextStyles.bodyBold.copyWith(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.main,
+                          );
+                          final String numText = '$studyCount';
+                          const String unitText = '회';
+                          final TextPainter numTp = TextPainter(
+                            text: TextSpan(text: numText, style: style),
+                            textDirection: TextDirection.ltr,
+                          )..layout();
+                          final TextPainter unitTp = TextPainter(
+                            text: TextSpan(text: unitText, style: style),
+                            textDirection: TextDirection.ltr,
+                          )..layout();
+                          return numTp.width + unitTp.width;
+                        }(),
+                        height: 22,
+                        child: Align(
+                          alignment: Alignment.bottomLeft,
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 1),
+                            child: RichText(
+                              text: TextSpan(
+                                style: AppTextStyles.bodyBold.copyWith(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.main,
+                                ),
+                                children: [
+                                  TextSpan(text: '$studyCount'),
+                                  const TextSpan(text: '회'),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             );
@@ -101,33 +209,44 @@ class StudyCountWidget extends StatelessWidget {
   }
 
   Widget _buildLabel(String text, int value, int currentCount) {
-    final bool isActive = currentCount == value;
+    final bool isActive = currentCount == value; // 현재 값이 5의 배수일 때 해당 눈금만 강조
     return Text(
       text,
       textAlign: TextAlign.center,
-      style: TextStyle(
-        fontSize: isActive ? 14 : 12,
-        fontWeight: isActive ? FontWeight.w700 : FontWeight.normal,
-        color: isActive ? AppColors.text_color1 : Color.fromRGBO(175, 175, 175, 1),
-      ),
+      style: isActive
+          ? AppTextStyles.bodyBold.copyWith(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.main)
+          : const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: Color.fromRGBO(175, 175, 175, 1),
+            ),
     );
   }
 }
 
 class _StudyProgressPainter extends CustomPainter {
-  final double ratio; // 0.0 ~ 1.0 (부분 진행 지원)
-  final int studyCount;
-  static const double _railHeight = 8;
-  static const double _tickRadius = 8;
+  final double fillRatio;   // 0.0 ~ 1.0, 레일 채움 비율(썸까지)
+  final double thumbRatio;  // 0.0 ~ 1.0, 썸(원) 위치(중간 2.5 포함)
+  final int studyCount;     // 실제 카운트
+  final int windowStart;    // 윈도우 시작 값(예: 0, 25, 50 ...)
+  static const double _railHeight = 6;
+  static const double _tickRadius = 7;
+  static const double _railTail = 12.0;
+  static const double _tickInset = _tickRadius; // 틱 중심을 좌우로 반지름만큼 안쪽에 배치
 
   const _StudyProgressPainter({
-    required this.ratio,
+    required this.fillRatio,
+    required this.thumbRatio,
     required this.studyCount,
+    required this.windowStart,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
     final double centerY = size.height / 2;
+    final double usableWidth = size.width - _railTail;
+    final double effectiveWidth = usableWidth - 2 * _tickInset; // 틱/썸 분포 길이
+    final double base = _tickInset; // 첫 틱 중심 X
 
     // 배경 레일
     final Paint railPaint = Paint()
@@ -143,7 +262,7 @@ class _StudyProgressPainter extends CustomPainter {
     final Paint fillPaint = Paint()
       ..color = AppColors.sub
       ..style = PaintingStyle.fill;
-    final double fillWidth = size.width * ratio;
+    final double fillWidth = base + (effectiveWidth * fillRatio);
     final RRect fillRRect = RRect.fromRectAndRadius(
       Rect.fromLTWH(0, centerY - _railHeight / 2, fillWidth, _railHeight),
       const Radius.circular(_railHeight / 2),
@@ -162,30 +281,35 @@ class _StudyProgressPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
 
     for (int i = 0; i <= 5; i++) {
-      final double x = size.width * (i / 5);
-      final int tickValue = i * 5; // 0, 5, 10, 15, 20, 25
+      final double x = base + (effectiveWidth * (i / 5));
+      final int tickValue = windowStart + i * 5; // 예: 25,30,35,40,45,50
 
       Paint tickPaint;
-      if (studyCount == tickValue) {
-        // 현재 위치는 main 색상
-        tickPaint = currentTickPaint;
-      } else if (studyCount > tickValue) {
-        // 지나온 위치는 sub 색상
-        tickPaint = completedTickPaint;
+      final int anchor = (studyCount ~/ 5) * 5;
+      final bool isExact = studyCount % 5 == 0;
+      if (isExact && tickValue == anchor) {
+        tickPaint = currentTickPaint; // 정확히 5의 배수인 현재 눈금
+      } else if (tickValue <= anchor) {
+        tickPaint = completedTickPaint; // 완료된 눈금
       } else {
-        // 아직 달성하지 않은 위치는 unchecked 색상
-        tickPaint = grayTickPaint;
+        tickPaint = grayTickPaint; // 아직 도달하지 않음
       }
 
       canvas.drawCircle(Offset(x, centerY), _tickRadius, tickPaint);
     }
 
-    // 5의 배수일 때는 별도의 진행 썸을 그리지 않음 (눈금 원으로 충분)
-    // 5의 배수가 아닐 때는 진행 썸도 그리지 않음 (레일만 표시)
+    // 현재 위치 썸(원) – 5의 배수면 해당 눈금, 아니면 구간 중앙(…+2.5)
+    final Offset thumbCenter = Offset(base + (effectiveWidth * thumbRatio), centerY);
+    canvas.drawCircle(thumbCenter, _tickRadius, currentTickPaint);
+
+    // 썸(원)은 위에서 그렸으며, 실제 카운트는 라벨(Stack)로 표시됩니다.
   }
 
   @override
   bool shouldRepaint(covariant _StudyProgressPainter oldDelegate) {
-    return oldDelegate.ratio != ratio || oldDelegate.studyCount != studyCount;
+    return oldDelegate.fillRatio != fillRatio ||
+           oldDelegate.thumbRatio != thumbRatio ||
+           oldDelegate.studyCount != studyCount ||
+           oldDelegate.windowStart != windowStart;
   }
 }
