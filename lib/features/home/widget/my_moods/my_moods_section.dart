@@ -28,7 +28,12 @@ class MyMoodsSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 제목
+
+          // 공부 횟수 게이지
+          
+          
+          // 제목 (원래 _buildCard의 title 파라미터에 있던 값)
+
           Text(
             '나만의 Moods',
             style: AppTextStyles.title.copyWith(color: Colors.black),

@@ -16,7 +16,7 @@ class StudyTimeSegmented extends StatelessWidget {
     Key? key,
     required this.value,
     required this.onChanged,
-    this.width = 110,
+    this.width = 95,
   }) : super(key: key);
 
   @override

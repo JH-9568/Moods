@@ -44,6 +44,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 const TotalStudyTimeWidget(
                   showSegment: true, // 세그먼트(이번 달/이번 주) 표시
                 ),
+                StudyCountWidget(studyCount: studyCount),
+                const SizedBox(height: 16),
               // 1. 나만의 Moods
               MyMoodsSection(
                 studyCount: studyCount,
