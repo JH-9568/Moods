@@ -10,11 +10,12 @@ class StudyRecordEmptyCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
+      width: 361,
+      height: 143,
+      
       decoration: BoxDecoration(
         color: AppColors.border, // 연한 파랑 배경
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Stack(
         children: [
@@ -31,20 +32,24 @@ class StudyRecordEmptyCard extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  '공부 기록',
+                  'My 공간',
                   style: AppTextStyles.title.copyWith(color: Colors.black),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
                 Text(
                   '현재 기록이 없어요',
-                  style: AppTextStyles.small.copyWith(color: AppColors.text_color2),
+                  style: AppTextStyles.small.copyWith(
+                    color: AppColors.text_color2,
+                  ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '공부 기록을 쌓아보세요!',
-                  style: AppTextStyles.small.copyWith(color: AppColors.text_color2),
+                  '다양한 공간을 방문해 공부를 시작해보세요!',
+                  style: AppTextStyles.small.copyWith(
+                    color: AppColors.text_color2,
+                  ),
                   textAlign: TextAlign.center,
                 ),
               ],
