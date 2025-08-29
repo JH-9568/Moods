@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:moods/common/constants/colors.dart';
 import 'package:moods/common/widgets/back_button.dart';
 import 'package:moods/features/auth/controller/auth_controller.dart';
+import 'package:moods/providers.dart';
 
 class AdditionalInfoScreen extends ConsumerStatefulWidget {
   const AdditionalInfoScreen({super.key});

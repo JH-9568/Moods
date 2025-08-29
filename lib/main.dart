@@ -8,22 +8,21 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:moods/routes/app_router.dart';
 import 'common/theme/app_theme.dart';
 
+// ✅ providers + authController
+import 'package:moods/providers.dart' show initialTokenProvider;
+import 'package:moods/features/auth/controller/auth_controller.dart';
+
 Future<void> _initServices() async {
-  // Supabase 초기화 (절대 service_role 키 넣지 말 것)
   await Supabase.initialize(
     url: 'https://wrokgtvjuwlmrdqdcytc.supabase.co',
-    anonKey:
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indyb2tndHZqdXdsbXJkcWRjeXRjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIyNDMyNjksImV4cCI6MjA2NzgxOTI2OX0.Rdbu0Q9sdv4yAo2k37CRdTVi-raAizqCRcQ8FcKhTBs',
-
-    // 🔑 OAuth는 PKCE로! (딥링크 host는 기본 'login-callback')
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indyb2tndHZqdXdsbXJkcWRjeXRjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIyNDMyNjksImV4cCI6MjA2NzgxOTI2OX0.Rdbu0Q9sdv4yAo2k37CRdTVi-raAizqCRcQ8FcKhTBs',
     authOptions: const FlutterAuthClientOptions(
       authFlowType: AuthFlowType.pkce,
-      // persistSession: true,
-      // autoRefreshToken: true,
+      autoRefreshToken: true, // 🔒 토큰 자동 갱신
+      // detectSessionInUri: true, // 필요하면 주석 해제
     ),
   );
 
-  // Kakao SDK 초기화 (네이티브 앱 키)
   KakaoSdk.init(nativeAppKey: '204b12b00149d9af0bd8814298314747');
 }
 
@@ -32,7 +31,6 @@ void main() {
   runApp(const ProviderScope(child: _Bootstrap()));
 }
 
-/// 초기화가 끝날 때까지 로딩 화면을 보여주고, 끝나면 실제 앱을 띄움.
 class _Bootstrap extends StatelessWidget {
   const _Bootstrap({super.key});
 
@@ -51,14 +49,31 @@ class _Bootstrap extends StatelessWidget {
           );
         }
 
-        // Supabase 초기화 이후 라우터 생성 (세션/딥링크 반영)
+        // ✅ Supabase 초기화 이후, 저장된 세션에서 초기 토큰 추출
+        final initialToken =
+            Supabase.instance.client.auth.currentSession?.accessToken;
+
         final GoRouter router = createAppRouter();
 
-        return MaterialApp.router(
-          routerConfig: router,
-          theme: appTheme,
-          debugShowCheckedModeBanner: false,
-          builder: (context, child) => child ?? const ColoredBox(color: Colors.white),
+        // ✅ 초기 토큰 override + 앱 시작과 동시에 AuthController 구동
+        return ProviderScope(
+          overrides: [
+            initialTokenProvider.overrideWithValue(initialToken),
+          ],
+          child: Consumer(
+            builder: (_, ref, __) {
+              // 이 줄로 AuthController가 생성되고 onAuthStateChange 구독 시작됨
+              ref.watch(authControllerProvider);
+
+              return MaterialApp.router(
+                routerConfig: router,
+                theme: appTheme,
+                debugShowCheckedModeBanner: false,
+                builder: (context, child) =>
+                    child ?? const ColoredBox(color: Colors.white),
+              );
+            },
+          ),
         );
       },
     );

@@ -1,44 +1,48 @@
 // lib/features/record/service/record_service.dart
-// 서비스: 백엔드 API 호출 담당
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:moods/common/constants/api_constants.dart'; // baseUrl 상수
+// baseUrl이 정의된 파일을 정확하게 import 해주세요.
+import 'package:moods/common/constants/api_constants.dart'; 
 
-/// jwtProvider는 "Bearer <token>"을 그대로 반환해야 함.
+/// jwtProvider는 "Bearer <token>" 형태의 문자열을 반환해야 함.
 class RecordService {
   final String Function() jwtProvider;
   const RecordService({required this.jwtProvider});
 
-  Map<String, String> get _headers => {
-        'Content-Type': 'application/json',
-        'Authorization': jwtProvider(),
-      };
+  Map<String, String> get _headers {
+    final headerValue = jwtProvider();
+
+    // ✅ 3번 로그: '공부 시작' 버튼 누를 때마다 이 로그가 찍혀야 합니다.
+    print('3️⃣ record_service.dart: Creating headers. Authorization value is: "$headerValue"');
+
+    return {
+      'Content-Type': 'application/json',
+      'Authorization': headerValue,
+    };
+  }
 
   Uri _u(String path, [Map<String, String>? q]) {
     final uri = Uri.parse('$baseUrl$path');
     return q == null ? uri : uri.replace(queryParameters: q);
   }
 
-  // 1) 세션 시작
+  // ===== Sessions =====
+
+  // 1) 세션 시작 (Postman 명세 기준 수정)
+  // Postman 명세에 따라 mood_id와 goals만 받도록 수정했습니다.
   Future<Map<String, dynamic>> startSession({
-    required String mood,
+    required String moodId,
     required List<String> goals,
-    required String title,
-    required String spaceId,
-    required String emotion,
-    required List<String> spaceFeature,
   }) async {
+    final body = {
+      'mood_id': moodId,
+      'goals': goals,
+    };
+
     final res = await http.post(
       _u('/study-sessions/start'),
       headers: _headers,
-      body: jsonEncode({
-        'mood': mood,
-        'goals': goals,
-        'title': title,
-        'space_id': spaceId,
-        'emotion': emotion,
-        'space_feature': spaceFeature,
-      }),
+      body: jsonEncode(body),
     );
     if (res.statusCode ~/ 100 != 2) {
       throw Exception('세션 시작 실패: ${res.body}');
@@ -73,18 +77,43 @@ class RecordService {
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
 
-  // 5) 종료 세션을 기록으로 내보내기
-  Future<Map<String, dynamic>> exportToRecord() async {
-    final res = await http.post(_u('/study-sessions/session-to-record'), headers: _headers);
+  // 5) 종료 세션을 기록으로 내보내기 (Postman 명세 기준 수정)
+  // Postman 명세에 따라 필요한 모든 정보를 body에 담아 보내도록 수정했습니다.
+  Future<Map<String, dynamic>> exportToRecord({
+    required String title,
+    required List<String> emotionTagIds,
+    required String spaceId,
+    int? wifiScore,
+    int? noiseLevel,
+    int? crowdness,
+    bool? power,
+  }) async {
+    final body = <String, dynamic>{
+      'title': title,
+      'emotion_tag_ids': emotionTagIds,
+      'space_id': spaceId,
+      'wifi_score': wifiScore,
+      'noise_level': noiseLevel,
+      'crowdness': crowdness,
+      'power': power,
+    };
+    // body에서 null 값은 제외
+    body.removeWhere((key, value) => value == null);
+    
+    final res = await http.post(
+      _u('/study-sessions/session-to-record'),
+      headers: _headers,
+      body: jsonEncode(body),
+    );
     if (res.statusCode ~/ 100 != 2) {
       throw Exception('세션 기록 내보내기 실패: ${res.body}');
     }
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
 
-  // === Goals ===
+  // ===== Goals =====
 
-  // 목표 추가 (POST /study-sessions/goals)
+  // 목표 추가
   Future<Map<String, dynamic>> addGoal(String text, {bool done = false}) async {
     final res = await http.post(
       _u('/study-sessions/goals'),
@@ -101,7 +130,7 @@ class RecordService {
     return data;
   }
 
-  // 목표 완료 토글 (PATCH /study-sessions/goals/:index)
+  // 목표 토글
   Future<Map<String, dynamic>> toggleGoal(int index, bool done) async {
     final res = await http.patch(
       _u('/study-sessions/goals/$index'),
@@ -118,7 +147,7 @@ class RecordService {
     return data;
   }
 
-  // 목표 제거 (DELETE /study-sessions/goals/:index)
+  // 목표 제거
   Future<Map<String, dynamic>> removeGoal(int index) async {
     final res = await http.delete(
       _u('/study-sessions/goals/$index'),
@@ -134,8 +163,9 @@ class RecordService {
     return data;
   }
 
-  // 7) 무드 기반 배경 이미지 URL 조회
-  // moodQuery 값: '트렌디한','감성적인','개방적인','자연 친화적인','컨셉 있는','활기찬','아늑한','조용한'
+  // ===== Wallpaper =====
+
+  // 무드 기반 배경 이미지 URL 조회
   Future<String> fetchWallpaper(String moodQuery) async {
     final res = await http.get(
       _u('/photos/wallpaper', {'query': moodQuery}),
