@@ -1,19 +1,57 @@
-// lib/providers.dart
 library app_providers;
 
-export 'features/auth/controller/auth_controller.dart';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'features/auth/service/auth_service.dart';
 import 'features/record/service/record_service.dart';
 
-/// 1) 로그인 후 access_token을 넣어두는 전역 Provider
-///    - 로그인 성공 시: ref.read(jwtProvider.notifier).state = accessToken;
-final jwtProvider = StateProvider<String?>((ref) => null);
+// -----------------------------
+// Auth
+// -----------------------------
 
-/// 2) RecordService 주입
-///    - jwt가 바뀌면 자동으로 헤더 값도 반영됨 ("Bearer <token>" 형태로 전달)
+/// 인증 서비스
+final authServiceProvider = Provider<AuthService>((ref) => AuthService());
+
+/// 앱 시작 시점의 초기 토큰 (절대 throw 금지)
+final initialTokenProvider = Provider<String?>((ref) {
+  // Supabase 초기화 전일 수도 있으니 try-catch로 안전 가드
+  try {
+    return Supabase.instance.client.auth.currentSession?.accessToken;
+  } catch (_) {
+    return null;
+  }
+});
+
+/// 현재 액세스 토큰(실시간). 초기값은 initialTokenProvider에서 읽음.
+/// 이후 onAuthStateChange 등에서 갱신됨.
+final authTokenProvider = StateProvider<String?>(
+  (ref) => ref.read(initialTokenProvider),
+);
+
+/// 부가 상태들
+final authUserProvider  = StateProvider<Map<String, dynamic>?>((ref) => null);
+final authErrorProvider = StateProvider<String?>((ref) => null);
+final authLastEventProvider = StateProvider<AuthChangeEvent?>((ref) => null);
+
+/// 필요 시 직접 클라이언트 접근용
+final supabaseClientProvider =
+    Provider<SupabaseClient>((ref) => Supabase.instance.client);
+
+// -----------------------------
+// Record
+// -----------------------------
+
+/// RecordService 주입
+///
+/// ✅ 핵심: jwtProvider 클로저 안에서 `ref.read(authTokenProvider)`를 매 호출 시점에 읽어서
+/// 항상 최신 토큰을 Authorization 헤더에 넣는다.
+/// (초기 렌더 시 토큰이 비어 있어도, 토큰이 생긴 뒤 호출하면 최신 값 사용)
 final recordServiceProvider = Provider<RecordService>((ref) {
-  final token = ref.watch(jwtProvider); // null 또는 실제 토큰
-  String jwtHeader() => (token == null || token.isEmpty) ? '' : 'Bearer $token';
-  return RecordService(jwtProvider: jwtHeader);
+  return RecordService(
+    jwtProvider: () {
+      final t = ref.read(authTokenProvider);
+      return (t == null || t.isEmpty) ? '' : 'Bearer $t';
+    },
+  );
 });
