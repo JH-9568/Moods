@@ -4,7 +4,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show NetworkAssetBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
+import 'record_finalize_step2.dart';
+import 'record_finalize_step1.dart';
 import 'package:moods/providers.dart';
 import 'package:moods/features/record/controller/record_controller.dart';
 import 'fullscreen_timer.dart';
@@ -36,22 +37,26 @@ class _RecordTimerScreenState extends ConsumerState<RecordTimerScreen> {
   String _lastWallUrl = '';
   bool? _wallIsDark;
 
+  //  한 번만 스타트
   bool _started = false;
+
+  //  닫기 중복 방지 가드
+  bool _closing = false;
 
   @override
   void initState() {
     super.initState();
     _dragCtrl = DraggableScrollableController();
-  }
 
-  void _startOnceIfTokenReady() {
-    if (_started) return;
-    final token = ref.read(authTokenProvider);
-    if (token != null && token.isNotEmpty) {
+    //  화면 진입 시, 무조건 한 번 startWithArgs 실행
+    // (컨트롤러 내부에서 토큰 가드/복구를 수행하므로 여기서 토큰 기다릴 필요 없음)
+    Future.microtask(() async {
+      if (_started) return;
       _started = true;
-      ref.read(recordControllerProvider.notifier)
-         .startWithArgs(widget.startArgs, context: context);
-    }
+      await ref
+          .read(recordControllerProvider.notifier)
+          .startWithArgs(widget.startArgs, context: context);
+    });
   }
 
   @override
@@ -71,31 +76,50 @@ class _RecordTimerScreenState extends ConsumerState<RecordTimerScreen> {
   }
 
   Future<void> _onClose() async {
-    final st = ref.read(recordControllerProvider);
-    if (st.selectedMoods.isEmpty) {
-      await showDialog(
+    if (_closing) return;
+    _closing = true;
+    try {
+      final st = ref.read(recordControllerProvider);
+
+      // 공간 무드 미선택 guard
+      if (st.selectedMoods.isEmpty) {
+        await showDialog(
+          context: context,
+          builder: (_) => const _Alert(
+            title: '잠시만요!',
+            message: '공간 무드를 선택해주세요',
+            okText: '확인',
+          ),
+        );
+        return;
+      }
+
+      // 종료 확인
+      final yes = await showDialog<bool>(
         context: context,
-        builder: (_) => const _Alert(
-          title: '잠시만요!',
-          message: '공간 무드를 선택해주세요',
-          okText: '확인',
+        builder: (_) => const _Confirm(
+          title: '공부를 끝내시겠어요?',
+          okText: '네\n기록을 저장할래요',
+          cancelText: '아니요\n이어서 할게요',
         ),
       );
-      return;
-    }
-    final yes = await showDialog<bool>(
-      context: context,
-      builder: (_) => const _Confirm(
-        title: '공부를 끝내시겠어요?',
-        okText: '네\n기록을 저장할래요',
-        cancelText: '아니요\n이어서 할게요',
-      ),
-    );
-    if (yes == true) {
-      final ctrl = ref.read(recordControllerProvider.notifier);
-      await ctrl.finish();
-      await ctrl.exportToRecord();
-      if (mounted) Navigator.of(context).pop();
+      if (yes != true) return;
+
+      // 1) 세션 종료 시도 (이미 종료된 경우는 무시)
+      try {
+        await ref.read(recordControllerProvider.notifier).finish();
+      } catch (e) {
+        final msg = e.toString();
+        if (!(msg.contains('이미 세션이 종료') || msg.toLowerCase().contains('already'))) {
+          debugPrint('finish() error ignored: $e');
+        }
+      }
+
+      // 2) 기록하기 풀스크린 플로우 (내부에서 exportToRecord)
+      if (!mounted) return;
+      await showRecordFinalizeFlow(context);
+    } finally {
+      _closing = false;
     }
   }
 
@@ -127,17 +151,6 @@ class _RecordTimerScreenState extends ConsumerState<RecordTimerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 토큰 준비되면 한 번만 시작
-    ref.listen<String?>(authTokenProvider, (prev, next) {
-      if (!_started && (next?.isNotEmpty ?? false)) {
-        WidgetsBinding.instance.addPostFrameCallback((_) => _startOnceIfTokenReady());
-      }
-    });
-    final tokenNow = ref.watch(authTokenProvider);
-    if (!_started && (tokenNow?.isNotEmpty ?? false)) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _startOnceIfTokenReady());
-    }
-
     final st = ref.watch(recordControllerProvider);
     final ctrl = ref.read(recordControllerProvider.notifier);
 
@@ -300,7 +313,6 @@ class _RecordTimerScreenState extends ConsumerState<RecordTimerScreen> {
                                     fontSize: _kFont16,
                                     height: _kLH160,
                                     fontWeight: FontWeight.w500,
-                                    // 🔴 요구사항: 미선택 -> 검정, 선택 -> 흰색
                                     color: on ? Colors.white : _kTextMain,
                                   ),
                                 ),
@@ -415,7 +427,7 @@ class _RecordTimerScreenState extends ConsumerState<RecordTimerScreen> {
   }
 }
 
-// 라벨 목록 (아늑한 ↔ 조용한 나란히 표시되도록 마지막에 배치)
+// 라벨 목록 (아늑한 ↔ 조용한 나란히)
 const List<String> _moodTags = [
   '트렌디한', '감성적인', '개방적인', '자연친화적인',
   '컨셉있는', '활기찬', '아늑한', '조용한',
@@ -451,7 +463,7 @@ class _GoalRow extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Row(
               children: [
-                // 체크(조금 더 굵어보이도록 done_rounded + size up)
+                // 체크(굵게)
                 Container(
                   width: 28,
                   height: 28,
