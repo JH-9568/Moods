@@ -1,23 +1,25 @@
 // lib/features/record/service/record_service.dart
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-// baseUrl이 정의된 파일을 정확하게 import 해주세요.
 import 'package:moods/common/constants/api_constants.dart'; 
-
 /// jwtProvider는 "Bearer <token>" 형태의 문자열을 반환해야 함.
 class RecordService {
   final String Function() jwtProvider;
   const RecordService({required this.jwtProvider});
 
   Map<String, String> get _headers {
-    final headerValue = jwtProvider();
+    final raw = jwtProvider().trim(); // providers에서 'Bearer <token>' 들어옴 가정
+    final hasAuth = raw.isNotEmpty && raw.toLowerCase().startsWith('bearer ');
 
-    // ✅ 3번 로그: '공부 시작' 버튼 누를 때마다 이 로그가 찍혀야 합니다.
-    print('3️⃣ record_service.dart: Creating headers. Authorization value is: "$headerValue"');
+    // 디버그 로그(마스킹)
+    final masked = raw.isEmpty
+        ? '""'
+        : '${raw.substring(0, raw.length.clamp(0, 12))}•••';
+    print('3️⃣ record_service.dart: Creating headers. Authorization value is: $masked');
 
     return {
       'Content-Type': 'application/json',
-      'Authorization': headerValue,
+      if (hasAuth) 'Authorization': raw, // 🔥 빈값이면 아예 헤더를 넣지 말기
     };
   }
 
@@ -35,7 +37,7 @@ class RecordService {
     required List<String> goals,
   }) async {
     final body = {
-      'mood_id': moodId,
+      'mood_id': moodId.isEmpty ? <String>[] : <String>[moodId],
       'goals': goals,
     };
 
@@ -110,6 +112,23 @@ class RecordService {
     }
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
+  
+  // 사용자의 현재 활성 세션 조회
+  Future<Map<String, dynamic>?> fetchUserSession() async {
+  final res = await http.get(_u('/study-sessions/user-session'), headers: _headers);
+  if (res.statusCode == 404) return null;
+  if (res.statusCode ~/ 100 != 2) {
+    throw Exception('사용자 세션 조회 실패: ${res.body}');
+  }
+
+  final data = jsonDecode(res.body);
+  if (data is Map && data['data'] is Map) {
+    final session = data['data'] as Map<String, dynamic>;
+    return session;
+  }
+
+  return null;
+}
 
   // ===== Goals =====
 

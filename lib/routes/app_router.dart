@@ -19,6 +19,7 @@ import 'package:moods/common/widgets/custom_app_bar.dart';
 import 'package:moods/common/widgets/custom_bottom_nav.dart';
 // RecordTimerScreen
 import 'package:moods/features/record/view/record_timer_screen.dart';
+import 'package:moods/features/record/view/record_card_preview.dart';
 
 // StartArgs
 import 'package:moods/features/record/controller/record_controller.dart';
@@ -142,6 +143,14 @@ GoRouter createAppRouter() {
       GoRoute(path: '/terms', builder: (_, __) => const TermsAgreementScreen()),
       GoRoute(path: '/complete', builder: (_, __) => const SignUpCompleteScreen()),
       GoRoute(path: '/reset-password', builder: (_, __) => const PasswordResetScreen()),
+      GoRoute(
+  path: '/record/preview',
+  builder: (_, state) {
+    final data = state.extra as RecordCardData;
+    return RecordCardPreviewScreen(data: data);
+  },
+),
+
       GoRoute(
   path: '/record',
   builder: (context, state) {

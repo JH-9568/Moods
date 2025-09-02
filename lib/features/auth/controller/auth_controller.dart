@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart'; // debugPrint
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:moods/features/auth/service/auth_service.dart';
 import 'package:moods/routes/app_router.dart' show routerPing;
@@ -54,33 +55,38 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
 
   // ---- Supabase 인증 상태 리스너
   void _initAuthListener() {
-    _sub?.cancel();
-    _sub = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
-      final session = data.session;
-      final event = data.event;
+  _sub?.cancel();
+  _sub = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+    final session = data.session;
+    final event = data.event;
 
-      ref.read(authTokenProvider.notifier).state = session?.accessToken;
-      ref.read(authUserProvider.notifier).state = session?.user.toJson();
-      ref.read(authLastEventProvider.notifier).state = event;
+    // ✅ initialSession이 들어오는데 session이 null이면 덮어쓰지 말고 스킵
+    if (event == AuthChangeEvent.initialSession && (session == null || session.accessToken.isEmpty)) {
+      debugPrint('⏭️ Auth state: initialSession(with null) — ignore (keep existing token)');
+      return;
+    }
 
-      debugPrint('✅ Auth state: $event');
+    // ✅ 여기부터는 진짜 세션 있을 때만 상태 반영
+    ref.read(authTokenProvider.notifier).state = session?.accessToken;
+    ref.read(authUserProvider.notifier).state = session?.user.toJson();
+    ref.read(authLastEventProvider.notifier).state = event;
 
-      // 로그인/갱신 시 갱신 타이머 재설정, 로그아웃 시 타이머 해제
-      if (event == AuthChangeEvent.signedIn ||
-          event == AuthChangeEvent.tokenRefreshed) {
-        _scheduleRefreshFrom(session);
-      } else if (event == AuthChangeEvent.signedOut) {
-        _cancelRefreshTimer();
-      }
+    debugPrint('✅ Auth state: $event  (hasSession=${session != null})');
 
-      // 로그인 직후 사용자 row 보장
-      if (event == AuthChangeEvent.signedIn) {
-        _authService.ensureUserRow().catchError((e) {
-          debugPrint('[auth] ensureUserRow failed: $e');
-        });
-      }
-    });
-  }
+    if (event == AuthChangeEvent.signedIn || event == AuthChangeEvent.tokenRefreshed) {
+      _scheduleRefreshFrom(session);
+    } else if (event == AuthChangeEvent.signedOut) {
+      _cancelRefreshTimer();
+    }
+
+    if (event == AuthChangeEvent.signedIn) {
+      _authService.ensureUserRow().catchError((e) {
+        debugPrint('[auth] ensureUserRow failed: $e');
+      });
+    }
+  });
+}
+
 
   // ---- 만료 45초 전에 refreshSession() 실행
   void _scheduleRefreshFrom(Session? s) {
@@ -121,46 +127,39 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
   // -------------------------------
   // 이메일/비번 로그인 (백엔드)
   // -------------------------------
-  Future<void> login(String email, String password) async {
+Future<void> login(String email, String password) async {
   if (state.isLoading) return;
   state = const AsyncValue.loading();
 
   try {
-    // 1) 백엔드 로그인
-    final dynamic res = await _authService.login(email, password);
+    // 백엔드 로그인 호출 (Map 형태를 반환한다고 가정)
+    final result = await _authService.login(email, password);
 
-    // 2) 토큰 파싱
-    final String? token = _extractToken(res);
-    if (token == null || token.isEmpty) {
-      throw Exception('로그인 응답에 access_token이 없습니다.');
-    }
-
-    // (선택) 응답에 유저 정보가 있으면 세팅
-    Map<String, dynamic>? userJson;
-    try {
-      // 응답 형태에 맞게 꺼내 쓰세요. 없으면 건너뜀.
-      userJson = (res is Map && res['user'] is Map) ? Map<String, dynamic>.from(res['user']) : null;
-    } catch (_) {}
-
-    // 3) 앱 상태 갱신
-    ref.read(authTokenProvider.notifier).state = token;
-    if (userJson != null) {
-      ref.read(authUserProvider.notifier).state = userJson;
-    }
-
-    // 4) 라우터가 "로그인됨"을 확실히 인지하도록 수동 이벤트 + 핑
-    //    (redirect가 authLastEventProvider 또는 authTokenProvider를 보고 있다면 즉시 넘어감)
-    ref.read(authLastEventProvider.notifier).state = AuthChangeEvent.signedIn;
-
-    // 라우터 새로고침 트리거
-    routerPing.ping();
-
-    state = const AsyncValue.data(null);
-  } catch (e, st) {
-    ref.read(authErrorProvider.notifier).state = e.toString();
-    state = AsyncValue.error(e, st);
+String? token;
+if (result is Map) {
+  final m = Map<String, dynamic>.from(result);
+  if (m['session'] is Map) {
+    final sess = Map<String, dynamic>.from(m['session'] as Map);
+    token = sess['access_token']?.toString();
+  } else {
+    token = m['access_token']?.toString();
   }
+} else if (result is String) {
+  token = result as String; // ← 명시 캐스트 (또는 result.toString())
 }
+
+    if (token == null || token.isEmpty) {
+      throw Exception('로그인 성공 응답에 access_token이 없습니다.');
+    }
+
+    // ── 전역 토큰 주입 + 저장
+    ref.read(authTokenProvider.notifier).state = token;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('access_token', token);
+
+    // ── 라우팅은 redirect가 처리하도록 ping만
+
+
 
   // -------------------------------
   // 카카오 로그인 (Supabase OAuth) — 그대로 둠
@@ -180,11 +179,16 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
   // -------------------------------
   // 로그아웃
   // -------------------------------
-  Future<void> logout() async {
-    if (state.isLoading) return;
+   Future<void> logout() async {
     state = const AsyncValue.loading();
     try {
+      // ✅ 서비스의 로그아웃 함수만 호출합니다.
+      //    마찬가지로 `onAuthStateChange` 리스너가 로그아웃 상태를 감지하고
+      //    Provider들을 알아서 null로 비워줄 것입니다.
       await _authService.signOut();
+
+      // ❌ 수동으로 토큰을 지우고 Provider를 비우는 코드를 모두 제거했습니다.
+
       routerPing.ping();
       state = const AsyncValue.data(null);
     } catch (e, st) {

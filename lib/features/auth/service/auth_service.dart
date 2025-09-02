@@ -60,7 +60,7 @@ class AuthService {
 
 // AuthService.loginWithKakao
 Future<void> loginWithKakao() async {
-  await _supabase.auth.signOut(); // 깔끔하게
+  await _supabase.auth.signOut(); 
 
   await _supabase.auth.signInWithOAuth(
     OAuthProvider.kakao,
@@ -69,12 +69,11 @@ Future<void> loginWithKakao() async {
     scopes: 'account_email profile_nickname profile_image',
     // 하얀 화면 방지: 외부 브라우저/앱으로
     authScreenLaunchMode: LaunchMode.externalApplication,
-    // 가능하면 재동의 강제(이전 동의가 없거나 거절됐던 케이스)
-    queryParams: {'prompt': 'login'}, // 사용 중인 supabase_flutter 버전에서 지원되면 그대로 사용
+    // 가능하면 재동의 강제
+    queryParams: {'prompt': 'login'}, 
   );
 }
 
-// auth_service.dart
 
 Future<void> syncEmailIntoUsers() async {
   final auth = _supabase.auth;
@@ -89,7 +88,7 @@ Future<void> syncEmailIntoUsers() async {
     final u = res.user;
     email = u?.email;
 
-    // 3) identities에 있을 수도 있음
+    // 3) identities
     if ((email == null || email.isEmpty) && (u?.identities != null)) {
       for (final id in u!.identities!) {
         final e = id.identityData?['email'] as String?;
@@ -100,12 +99,12 @@ Future<void> syncEmailIntoUsers() async {
       }
     }
 
-    // 4) user_metadata에 있을 수도 있음
+    // 4) user_metadata
     email ??= (u?.userMetadata?['email'] as String?);
   }
 
   if (email != null && email.isNotEmpty) {
-    // 내 row만 업데이트 가능하도록 RLS 정책이 있어야 함(아래 참고)
+    // 내 row만 업데이트 가능하도록
     await _supabase
         .from('users')
         .update({'email': email})
@@ -232,7 +231,7 @@ Future<void> syncEmailIntoUsers() async {
   }
 
   Future<void> completeEmailSignUp({
-  required String userId,    // ★ uuid
+  required String userId,    //  uuid
   required String email,
   required String password,
   required String nickname,
