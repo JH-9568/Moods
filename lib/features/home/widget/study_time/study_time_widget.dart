@@ -1,10 +1,9 @@
 // lib/features/home/widget/study_time/study_time_widget.dart
-import 'dart:ui'; // ImageFilter를 사용하기 위해 추가합니다.
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:moods/common/constants/text_styles.dart';
 import 'package:moods/features/home/widget/study_time/study_time_controller.dart';
-import 'package:moods/features/home/widget/study_time/study_time_provider.dart';
 import 'package:moods/features/home/widget/study_time/study_time_segmented.dart';
 import 'package:moods/features/home/widget/study_time/time_format.dart';
 
@@ -36,11 +35,10 @@ class TotalStudyTimeWidget extends ConsumerWidget {
           )
         : const SizedBox.shrink();
 
-    // 전체 위젯을 Stack으로 감싸서 배경을 맨 뒤에 배치합니다.
     return Stack(
       alignment: Alignment.topCenter,
       children: [
-        // 1. 배경 위젯
+        // 배경 Glow
         Padding(
           padding: const EdgeInsets.only(top: 50),
           child: ClipOval(
@@ -49,15 +47,13 @@ class TotalStudyTimeWidget extends ConsumerWidget {
               child: Container(
                 width: 151,
                 height: 151,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE8EBF8).withOpacity(0.7),
-                ),
+                color: const Color(0xFFE8EBF8).withOpacity(0.7),
               ),
             ),
           ),
         ),
 
-        // 2. 기존 컨텐츠 (Segmented Control, 타이머 등)
+        // 컨텐츠
         Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -78,7 +74,7 @@ class TotalStudyTimeWidget extends ConsumerWidget {
   }
 }
 
-/// 시간 텍스트만 표시하는 단순한 위젯입니다.
+/// 시간 텍스트
 class _TimeText extends StatelessWidget {
   final String timeText;
   final bool dimmed;
