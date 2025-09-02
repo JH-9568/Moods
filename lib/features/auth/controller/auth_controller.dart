@@ -135,18 +135,18 @@ Future<void> login(String email, String password) async {
     // 백엔드 로그인 호출 (Map 형태를 반환한다고 가정)
     final result = await _authService.login(email, password);
 
-String? token;
-if (result is Map) {
-  final m = Map<String, dynamic>.from(result);
-  if (m['session'] is Map) {
-    final sess = Map<String, dynamic>.from(m['session'] as Map);
-    token = sess['access_token']?.toString();
-  } else {
-    token = m['access_token']?.toString();
-  }
-} else if (result is String) {
-  token = result as String; // ← 명시 캐스트 (또는 result.toString())
-}
+    String? token;
+    if (result is Map) {
+      final m = Map<String, dynamic>.from(result);
+      if (m['session'] is Map) {
+        final sess = Map<String, dynamic>.from(m['session'] as Map);
+        token = sess['access_token']?.toString();
+      } else {
+        token = m['access_token']?.toString();
+      }
+    } else if (result is String) {
+      token = result as String; // ← 명시 캐스트 (또는 result.toString())
+    }
 
     if (token == null || token.isEmpty) {
       throw Exception('로그인 성공 응답에 access_token이 없습니다.');
@@ -156,8 +156,15 @@ if (result is Map) {
     ref.read(authTokenProvider.notifier).state = token;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('access_token', token);
-
+  
     // ── 라우팅은 redirect가 처리하도록 ping만
+  } catch (e, st) {
+    // ── 에러 상태 반영
+    state = AsyncValue.error(e, st);
+    rethrow;
+  }
+}
+
 
 
 
