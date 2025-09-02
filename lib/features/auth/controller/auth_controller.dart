@@ -158,14 +158,6 @@ if (result is Map) {
     await prefs.setString('access_token', token);
 
     // ── 라우팅은 redirect가 처리하도록 ping만
-    routerPing.ping();
-
-    state = const AsyncValue.data(null);
-  } catch (e, st) {
-    ref.read(authErrorProvider.notifier).state = e.toString();
-    state = AsyncValue.error(e, st);
-  }
-}
 
 
 

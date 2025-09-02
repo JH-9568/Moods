@@ -28,7 +28,12 @@ class MyMoodsSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 제목
+
+          // 공부 횟수 게이지
+          
+          
+          // 제목 (원래 _buildCard의 title 파라미터에 있던 값)
+
           Text(
             '나만의 Moods',
             style: AppTextStyles.title.copyWith(color: Colors.black),
@@ -41,7 +46,7 @@ class MyMoodsSection extends StatelessWidget {
           ),
           const SizedBox(height: 30),
           // 공부 횟수 게이지
-          StudyCountWidget(studyCount: studyCount),
+          
           const SizedBox(height: 12),
           // 공부 시작하기 버튼
           SizedBox(
