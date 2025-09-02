@@ -1,11 +1,8 @@
 // lib/features/home/widget/study_time/study_time_segmented.dart
-// 역할: "이번 달 / 이번 주" 세그먼티드 컨트롤
-
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:moods/features/home/widget/study_time/study_time_provider.dart';
 import 'package:moods/common/constants/colors.dart';
 import 'package:moods/common/constants/text_styles.dart';
+import 'package:moods/features/home/widget/study_time/study_time_controller.dart' show StudyTotalRange;
 
 class StudyTimeSegmented extends StatelessWidget {
   final StudyTotalRange value;
@@ -16,14 +13,14 @@ class StudyTimeSegmented extends StatelessWidget {
     Key? key,
     required this.value,
     required this.onChanged,
-    this.width = 95,
+    this.width = 100, // 버튼 전체 폭 (이번 달/이번 주 나눠서)
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     const double height = 24;
-    const double radius = 20; // pill
-    const double outerPadding = 3; // 바깥 여백(트랙과 thumb 사이의 링 두께)
+    const double radius = 20;
+    const double outerPadding = 3;
 
     final bool isMonth = value == StudyTotalRange.month;
 
@@ -33,38 +30,35 @@ class StudyTimeSegmented extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final double trackWidth = constraints.maxWidth;
-          final double thumbWidth = (trackWidth - outerPadding * 2) / 2; // 반쪽
+          final double thumbWidth = (trackWidth - outerPadding * 2) / 2;
 
           return Stack(
             children: [
-              // Track (비선택 영역)
+              // 전체 트랙 (sub 색상)
               Container(
                 decoration: BoxDecoration(
-                  color: AppColors.sub, // 트랙 색
+                  color: AppColors.sub,
                   borderRadius: BorderRadius.circular(radius),
                 ),
               ),
 
-              // Sliding white thumb + SUB 컬러 링(트랙을 노출해서 링처럼 보이게)
+              // 흰색 슬라이드 thumb
               AnimatedPositioned(
                 duration: const Duration(milliseconds: 180),
                 curve: Curves.easeOut,
-                left: isMonth ? outerPadding : (trackWidth / 2) + outerPadding - 0.0,
+                left: isMonth ? outerPadding : (trackWidth / 2) + outerPadding,
                 top: outerPadding,
                 bottom: outerPadding,
-                width: thumbWidth - outerPadding, // 바깥 여백만큼 줄여 링을 만들기 위함
+                width: thumbWidth - outerPadding,
                 child: Container(
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(radius - 2),
-                    // 외곽 테두리를 더 강조하고 싶으면 아래 보더 라인을 풀어서 사용
-                    // border: Border.all(color: AppColors.sub, width: 1.5),
-                    
                   ),
                 ),
               ),
 
-              // Labels + 터치 영역
+              // 텍스트 + 터치 영역
               Row(
                 children: [
                   Expanded(

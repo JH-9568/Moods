@@ -46,7 +46,7 @@ class MyMoodsSection extends StatelessWidget {
           ),
           const SizedBox(height: 30),
           // 공부 횟수 게이지
-          StudyCountWidget(studyCount: studyCount),
+          
           const SizedBox(height: 12),
           // 공부 시작하기 버튼
           SizedBox(

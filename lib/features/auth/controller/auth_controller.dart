@@ -122,25 +122,45 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
   // 이메일/비번 로그인 (백엔드)
   // -------------------------------
   Future<void> login(String email, String password) async {
-    state = const AsyncValue.loading();
-    try {
-      final dynamic res = await _authService.login(email, password);
+  if (state.isLoading) return;
+  state = const AsyncValue.loading();
 
-      final String? token = _extractToken(res);
-      if (token != null && token.isNotEmpty) {
-        ref.read(authTokenProvider.notifier).state = token;
-        debugPrint('✅ Custom login: token set');
-      } else {
-        debugPrint('⚠️ Custom login returned empty token (res=$res)');
-      }
+  try {
+    // 1) 백엔드 로그인
+    final dynamic res = await _authService.login(email, password);
 
-      routerPing.ping();
-      state = const AsyncValue.data(null);
-    } catch (e, st) {
-      ref.read(authErrorProvider.notifier).state = e.toString();
-      state = AsyncValue.error(e, st);
+    // 2) 토큰 파싱
+    final String? token = _extractToken(res);
+    if (token == null || token.isEmpty) {
+      throw Exception('로그인 응답에 access_token이 없습니다.');
     }
+
+    // (선택) 응답에 유저 정보가 있으면 세팅
+    Map<String, dynamic>? userJson;
+    try {
+      // 응답 형태에 맞게 꺼내 쓰세요. 없으면 건너뜀.
+      userJson = (res is Map && res['user'] is Map) ? Map<String, dynamic>.from(res['user']) : null;
+    } catch (_) {}
+
+    // 3) 앱 상태 갱신
+    ref.read(authTokenProvider.notifier).state = token;
+    if (userJson != null) {
+      ref.read(authUserProvider.notifier).state = userJson;
+    }
+
+    // 4) 라우터가 "로그인됨"을 확실히 인지하도록 수동 이벤트 + 핑
+    //    (redirect가 authLastEventProvider 또는 authTokenProvider를 보고 있다면 즉시 넘어감)
+    ref.read(authLastEventProvider.notifier).state = AuthChangeEvent.signedIn;
+
+    // 라우터 새로고침 트리거
+    routerPing.ping();
+
+    state = const AsyncValue.data(null);
+  } catch (e, st) {
+    ref.read(authErrorProvider.notifier).state = e.toString();
+    state = AsyncValue.error(e, st);
   }
+}
 
   // -------------------------------
   // 카카오 로그인 (Supabase OAuth) — 그대로 둠

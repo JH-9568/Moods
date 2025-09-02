@@ -41,11 +41,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           child: Column(
             children: [
               // 예시: home_page.dart 일부
-                const TotalStudyTimeWidget(
-                  showSegment: true, // 세그먼트(이번 달/이번 주) 표시
-                ),
-                StudyCountWidget(studyCount: studyCount),
-                const SizedBox(height: 16),
+              const TotalStudyTimeWidget(
+                showSegment: true, // 세그먼트(이번 달/이번 주) 표시
+              ),
+              StudyCountWidget(studyCount: studyCount),
+              const SizedBox(height: 16),
               // 1. 나만의 Moods
               MyMoodsSection(
                 studyCount: studyCount,
@@ -95,10 +95,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: AppTextStyles.title,
-          ),
+          Text(title, style: AppTextStyles.title),
           const SizedBox(height: 1.5),
           child,
         ],
