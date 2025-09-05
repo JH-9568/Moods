@@ -17,13 +17,10 @@ import 'package:moods/features/explore/view/explore_screen.dart';
 import 'package:moods/features/map/view/map_screen.dart';
 import 'package:moods/common/widgets/custom_app_bar.dart';
 import 'package:moods/common/widgets/custom_bottom_nav.dart';
-// RecordTimerScreen
 import 'package:moods/features/record/view/record_timer_screen.dart';
 import 'package:moods/features/record/view/record_card_preview.dart';
-
-// StartArgs
 import 'package:moods/features/record/controller/record_controller.dart';
-
+import 'package:moods/features/record/view/record_finalize_step1.dart';
 class RouterPing extends ChangeNotifier {
   void ping() => notifyListeners();
 }
@@ -58,28 +55,30 @@ GoRouter createAppRouter() {
     redirect: (context, state) async {
       final supa = Supabase.instance.client;
       final path = state.uri.path;
-      final scheme = state.uri.scheme;
 
-      // 0) 딥링크 콜백은 통과
-       if (scheme == 'moods') {
-    return '/start'; // 또는 '/home' 원하는 위치
-  }
+      // 0) 딥링크 콜백은 통과 (원하면 /home 등으로 바꿔도 됨)
+      if (state.uri.scheme == 'moods') {
+        return '/start';
+      }
 
-      // 1) 온보딩 화면은 세션 여부와 무관하게 항상 통과
+      // 1) 온보딩 화면은 항상 통과
       const onboardingPages = {'/kakao', '/terms', '/complete'};
       if (onboardingPages.contains(path)) {
-        if (path == '/complete') _cachedProfileFilled = null; // 캐시 초기화
+        if (path == '/complete') _cachedProfileFilled = null;
         return null;
       }
 
       // 2) 로그인 게이트
-      final prefs       = await SharedPreferences.getInstance();
-      final customToken = prefs.getString('access_token');
-      final session     = supa.auth.currentSession;
-      final hasSupa     = session != null;
-      final hasCustom   = (customToken != null && customToken.isNotEmpty);
-      final loggedIn    = hasSupa || hasCustom;
+      // 2-1) SharedPreferences (이메일/비번 로그인용 커스텀 토큰)
+      final prefs = await SharedPreferences.getInstance();
+      final spToken = prefs.getString('access_token');
+      final hasSp   = spToken != null && spToken.isNotEmpty;
 
+      // 2-2) Supabase 세션(카카오 OAuth 등)
+      final session = supa.auth.currentSession;
+      final hasSupa = session != null;
+
+      final loggedIn = hasSp || hasSupa;
       const authPages = {'/start', '/register', '/reset-password'};
 
       // ── 비로그인
@@ -103,16 +102,15 @@ GoRouter createAppRouter() {
           try {
             final row = await supa
                 .from('users')
-                // ⚠️ 이메일 필수 체크 제외(카카오에서 없을 수 있음)
-                .select('nickname, birthday, gender,email')
+                .select('nickname, birthday, gender, email')
                 .eq('id', uid)
                 .maybeSingle();
 
-            final filled = row != null &&
-  (row['nickname'] ?? '').toString().isNotEmpty &&
-  row['birthday'] != null &&
-  row['gender'] != null &&
-  (row['email'] ?? '').toString().isNotEmpty;   
+            filled = row != null &&
+                (row['nickname'] ?? '').toString().isNotEmpty &&
+                row['birthday'] != null &&
+                row['gender'] != null &&
+                (row['email'] ?? '').toString().isNotEmpty;
 
             _cachedProfileFilled = filled;
           } catch (_) {
@@ -133,7 +131,6 @@ GoRouter createAppRouter() {
 
       // 로그인 상태에서 인증/가입 화면 접근 시 홈으로
       if (authPages.contains(path)) return '/home';
-
       return null;
     },
     routes: [
@@ -144,20 +141,23 @@ GoRouter createAppRouter() {
       GoRoute(path: '/complete', builder: (_, __) => const SignUpCompleteScreen()),
       GoRoute(path: '/reset-password', builder: (_, __) => const PasswordResetScreen()),
       GoRoute(
-  path: '/record/preview',
-  builder: (_, state) {
-    final data = state.extra as RecordCardData;
-    return RecordCardPreviewScreen(data: data);
-  },
-),
-
+        path: '/record/preview',
+        builder: (_, state) {
+          final data = state.extra as RecordCardData;
+          return RecordCardPreviewScreen(data: data);
+        },
+      ),
       GoRoute(
-  path: '/record',
-  builder: (context, state) {
-    final args = state.extra as StartArgs;
-    return RecordTimerScreen(startArgs: args);
-  },
-),
+        path: '/record/finalize_step1',
+        builder: (_, __) => const FinalizeStep1Screen(),
+      ),
+      GoRoute(
+        path: '/record',
+        builder: (context, state) {
+          final args = state.extra as StartArgs;
+          return RecordTimerScreen(startArgs: args);
+        },
+      ),
       ShellRoute(
         builder: (_, __, child) => Scaffold(
           extendBodyBehindAppBar: true,
