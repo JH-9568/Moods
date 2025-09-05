@@ -11,6 +11,8 @@ import 'common/theme/app_theme.dart';
 import 'package:moods/providers.dart';
 import 'package:moods/features/auth/controller/auth_controller.dart';
 
+final routerPingProvider = Provider((ref) => routerPing);
+
 Future<void> _initServices() async {
   await Supabase.initialize(
     url: 'https://wrokgtvjuwlmrdqdcytc.supabase.co',
@@ -58,7 +60,7 @@ class _Bootstrap extends StatelessWidget {
           return _loading();
         }
 
-        // ✅ Supabase 초기화 완료 후 SharedPreferences 로드
+        //  Supabase 초기화 완료 후 SharedPreferences 로드
         return FutureBuilder<SharedPreferences>(
           future: SharedPreferences.getInstance(),
           builder: (context, prefsSnap) {
@@ -125,44 +127,44 @@ class _AuthSyncer extends StatefulWidget {
 
 class _AuthSyncerState extends State<_AuthSyncer> {
   @override
-  void initState() {
-    super.initState();
+void initState() {
+  super.initState();
 
-    // ✅ 이벤트/세션을 함께 받는다
-    Supabase.instance.client.auth.onAuthStateChange.listen((auth) async {
-      final event = auth.event;
-      final session = auth.session;
+  Supabase.instance.client.auth.onAuthStateChange.listen((auth) async {
+    final event = auth.event;
+    final session = auth.session;
 
-      // 1) 초기 null 세션은 무시 (지우지 말기)
-      if (event == AuthChangeEvent.initialSession) {
-        print('⏭️ Auth state: initialSession(with ${session == null ? "null" : "session"}) — ignore');
-        return;
-      }
+    // 1) 초기 null 세션은 무시 (지우지 말기)
+    if (event == AuthChangeEvent.initialSession) {
+      print('⏭️ Auth state: initialSession(with ${session == null ? "null" : "session"}) — ignore');
+      return;
+    }
 
-      final container = ProviderScope.containerOf(context, listen: false);
-      final prefs = await SharedPreferences.getInstance();
+    final container = ProviderScope.containerOf(context, listen: false);
+    final prefs = await SharedPreferences.getInstance();
 
-      // 2) Supabase 경로로 로그인된 케이스 (카카오 등)
-      if (event == AuthChangeEvent.signedIn && (session?.accessToken?.isNotEmpty ?? false)) {
-        final t = session!.accessToken!;
-        container.read(authTokenProvider.notifier).state = t;
-        await prefs.setString('access_token', t);
-        print('🔄 AuthSyncer: signedIn → token set ${t.substring(0, 12)}•••');
-        return;
-      }
+    // 2) Supabase 경로 로그인(카카오 등)만 자동 세팅
+    if (event == AuthChangeEvent.signedIn && (session?.accessToken?.isNotEmpty ?? false)) {
+      final t = session!.accessToken!;
+      container.read(authTokenProvider.notifier).state = t;
+      await prefs.setString('access_token', t);
+      print('🔄 AuthSyncer: signedIn → token set ${t.substring(0, 12)}•••');
+      routerPing.ping(); // 로그인 반영
+      return;
+    }
 
-      // 3) Supabase에서 로그아웃된 케이스만 클리어
-      if (event == AuthChangeEvent.signedOut) {
-        container.read(authTokenProvider.notifier).state = null;
-        await prefs.remove('access_token');
-        print('🔄 AuthSyncer: signedOut → token cleared');
-        return;
-      }
+    // 3) Supabase 로그아웃만 클리어
+    if (event == AuthChangeEvent.signedOut) {
+      container.read(authTokenProvider.notifier).state = null;
+      await prefs.remove('access_token');
+      print('🔄 AuthSyncer: signedOut → token cleared');
+      routerPing.ping();
+      return;
+    }
 
-      // 4) 그 외 이벤트는 건드리지 않음
-      print('ℹ️ AuthSyncer: event=$event ignored');
-    });
-  }
+    print('ℹ️ AuthSyncer: event=$event ignored');
+  });
+}
 
   @override
   Widget build(BuildContext context) => widget.child;

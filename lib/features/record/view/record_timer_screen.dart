@@ -4,11 +4,13 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show NetworkAssetBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'record_finalize_step2.dart';
+import 'package:go_router/go_router.dart';
+
 import 'record_finalize_step1.dart';
-import 'package:moods/providers.dart';
 import 'package:moods/features/record/controller/record_controller.dart';
 import 'fullscreen_timer.dart';
+// 공용 박스/칩 위젯
+import 'package:moods/features/record/widget/widget.dart';
 
 const double _kFont16 = 16;
 const double _kLH160  = 1.6;
@@ -37,25 +39,46 @@ class _RecordTimerScreenState extends ConsumerState<RecordTimerScreen> {
   String _lastWallUrl = '';
   bool? _wallIsDark;
 
-  //  한 번만 스타트
-  bool _started = false;
-
-  //  닫기 중복 방지 가드
-  bool _closing = false;
+  bool _started = false; // 한 번만 스타트
+  bool _closing = false; // 닫기 중복 방지
 
   @override
   void initState() {
     super.initState();
     _dragCtrl = DraggableScrollableController();
 
-    //  화면 진입 시, 무조건 한 번 startWithArgs 실행
-    // (컨트롤러 내부에서 토큰 가드/복구를 수행하므로 여기서 토큰 기다릴 필요 없음)
-    Future.microtask(() async {
-      if (_started) return;
+    // ⚠️ 프레임 이후에 내비/스낵바 사용
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted || _started) return;
       _started = true;
-      await ref
-          .read(recordControllerProvider.notifier)
-          .startWithArgs(widget.startArgs, context: context);
+
+      try {
+        await ref
+            .read(recordControllerProvider.notifier)
+            .startWithArgs(widget.startArgs, context: context);
+      } catch (e) {
+        if (!mounted) return;
+
+        final messenger = ScaffoldMessenger.maybeOf(context);
+        final router = GoRouter.of(context);
+
+        if (e.toString().contains('unexported_session_exists')) {
+          // 미완료 세션 → 마무리 플로우로
+          messenger?.showSnackBar(
+            const SnackBar(content: Text('마무리하지 않은 기록이 있습니다. 먼저 기록을 완료해주세요.')),
+          );
+          router.push('/record/finalize_step1');
+        } else {
+          messenger?.showSnackBar(
+            const SnackBar(content: Text('오류가 발생했습니다!')),
+          );
+          if (router.canPop()) {
+            router.pop();
+          } else {
+            router.go('/home');
+          }
+        }
+      }
     });
   }
 
@@ -115,7 +138,7 @@ class _RecordTimerScreenState extends ConsumerState<RecordTimerScreen> {
         }
       }
 
-      // 2) 기록하기 풀스크린 플로우 (내부에서 exportToRecord)
+      // 2) 기록하기 풀스크린 플로우
       if (!mounted) return;
       await showRecordFinalizeFlow(context);
     } finally {
@@ -301,39 +324,10 @@ class _RecordTimerScreenState extends ConsumerState<RecordTimerScreen> {
                           ),
                           const SizedBox(height: 16),
 
-                          Wrap(
-                            spacing: 10,
-                            runSpacing: 10,
-                            children: _moodTags.map((m) {
-                              final on = st.selectedMoods.contains(m);
-                              return FilterChip(
-                                label: Text(
-                                  m,
-                                  style: TextStyle(
-                                    fontSize: _kFont16,
-                                    height: _kLH160,
-                                    fontWeight: FontWeight.w500,
-                                    color: on ? Colors.white : _kTextMain,
-                                  ),
-                                ),
-                                labelPadding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 4,
-                                ),
-                                shape: StadiumBorder(
-                                  side: BorderSide(
-                                    color: on ? _kChipFillSelected : _kChipStroke,
-                                  ),
-                                ),
-                                backgroundColor: Colors.white,
-                                selectedColor: _kChipFillSelected,
-                                showCheckmark: false,
-                                selected: on,
-                                onSelected: (_) => ref
-                                    .read(recordControllerProvider.notifier)
-                                    .toggleMood(m),
-                              );
-                            }).toList(),
+                          // Step1과 동일한 3/3/2 칩 그리드
+                          MoodChipsFixedGrid(
+                            selected: st.selectedMoods,
+                            onTap: (m) => ctrl.toggleMood(m),
                           ),
 
                           const SizedBox(height: 24),
@@ -350,18 +344,22 @@ class _RecordTimerScreenState extends ConsumerState<RecordTimerScreen> {
                           ),
                           const SizedBox(height: 12),
 
+                          // Step1과 동일한 목표 Pill
                           ...st.goals.asMap().entries.map((e) {
                             final i = e.key;
                             final g = e.value;
-                            return _GoalRow(
-                              text: g.text,
+                            final disabled = g.text.trim().isEmpty;
+                            return GoalPillRow(
+                              text: g.text.isEmpty ? '목표' : g.text,
                               done: g.done,
+                              disabled: disabled,
                               onToggle: (v) => ref
                                   .read(recordControllerProvider.notifier)
                                   .toggleGoal(i, v, context: context),
                             );
                           }),
 
+                          // 입력 행
                           ..._draftCtrls.asMap().entries.map((e) {
                             final c = e.value;
                             return _GoalInputRow(
@@ -388,7 +386,7 @@ class _RecordTimerScreenState extends ConsumerState<RecordTimerScreen> {
                                 });
                               },
                               child: Container(
-                                height: 52,
+                                height: 36,
                                 alignment: Alignment.center,
                                 decoration: BoxDecoration(
                                   color: const Color(0xFFEFF1FA),
@@ -433,82 +431,6 @@ const List<String> _moodTags = [
   '컨셉있는', '활기찬', '아늑한', '조용한',
 ];
 
-// ---- 목표 행 ----
-class _GoalRow extends StatelessWidget {
-  final String text;
-  final bool done;
-  final Future<void> Function(bool) onToggle;
-
-  const _GoalRow({
-    required this.text,
-    required this.done,
-    required this.onToggle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final bg      = done ? const Color(0xFFA7B3F1) : Colors.white;
-    final checkBg = done ? const Color(0xFF6B6BE5) : const Color(0xFFE8ECF6);
-    final textCol = done ? Colors.white : _kTextMain;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => onToggle(!done),
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            height: 52,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
-              children: [
-                // 체크(굵게)
-                Container(
-                  width: 28,
-                  height: 28,
-                  decoration: BoxDecoration(
-                    color: checkBg,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  alignment: Alignment.center,
-                  child: Icon(
-                    Icons.done_rounded,
-                    size: 20,
-                    color: done ? Colors.white : const Color(0xFFB7BED6),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Container(
-                    height: 52,
-                    alignment: Alignment.centerLeft,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    decoration: BoxDecoration(
-                      color: bg,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      text,
-                      style: TextStyle(
-                        fontSize: _kFont16,
-                        height: _kLH160,
-                        fontWeight: FontWeight.w500,
-                        color: textCol,
-                        decoration: TextDecoration.none,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 // ---- 목표 입력 ----
 class _GoalInputRow extends StatelessWidget {
   final TextEditingController controller;
@@ -537,12 +459,12 @@ class _GoalInputRow extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Container(
-              height: 52,
+              height: 30,
               alignment: Alignment.centerLeft,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(8),
               ),
               child: TextField(
                 controller: controller,

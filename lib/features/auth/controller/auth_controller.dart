@@ -1,11 +1,12 @@
-// lib/features/auth/controller/auth_controller.dart
 import 'dart:async';
-import 'package:flutter/foundation.dart'; // debugPrint
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
+import 'package:shared_preferences/shared_preferences.dart'; // (기존 사용: 남겨둠, 더이상 저장엔 안씀)
+import 'package:moods/main.dart';
 import 'package:moods/features/auth/service/auth_service.dart';
+import 'package:moods/features/auth/service/token_storage.dart'; // ⬅️ 추가
 import 'package:moods/routes/app_router.dart' show routerPing;
 import 'package:moods/providers.dart';
 
@@ -25,89 +26,120 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
   final Ref ref;
   final AuthService _authService;
 
+  // ⬇️ SecureStorage 래퍼
+ late final TokenStorage _storage;
+
   StreamSubscription<AuthState>? _sub;
-  Timer? _refreshTimer; // ⏰ 만료 전 자동 갱신 타이머
+  Timer? _refreshTimer; // Supabase OAuth용
 
   AuthController(this.ref, this._authService)
-    : super(const AsyncValue.data(null)) {
-  // ✅ build(초기화) 중에 다른 provider 상태를 건드리지 않도록, 다음 마이크로태스크로 미룸
-  Future.microtask(() {
-    _initAuthListener();
-    _syncCurrentSessionOnAppStart();
-  });
-}
+      : super(const AsyncValue.data(null)) {
+    _storage = ref.read(tokenStorageProvider);
 
+    Future.microtask(() async {
+      _initAuthListener();                  // Supabase OAuth 이벤트
+      await _syncCurrentSessionOnAppStart(); // 커스텀 토큰 복구
+    });
+  }
 
-  // ---- 앱 시작 시 저장된 세션 동기화
-  void _syncCurrentSessionOnAppStart() {
-    final currentSession = Supabase.instance.client.auth.currentSession;
-    if (currentSession != null) {
-      ref.read(authTokenProvider.notifier).state = currentSession.accessToken;
-      ref.read(authUserProvider.notifier).state = currentSession.user.toJson();
-      debugPrint('✅ App Start: Restored session');
-
-      // ⏰ 앱 시작할 때도 갱신 타이머 설정
-      _scheduleRefreshFrom(currentSession);
-    } else {
-      debugPrint('🤔 App Start: No session');
+  // ===============================
+  // JWT 만료 체크 (커스텀 토큰용)
+  // ===============================
+  bool _isJwtExpired(String token, {int leewaySec = 30}) {
+    try {
+      final parts = token.split('.');
+      if (parts.length != 3) return true;
+      var b64 = parts[1].replaceAll('-', '+').replaceAll('_', '/');
+      while (b64.length % 4 != 0) b64 += '=';
+      final payload = jsonDecode(utf8.decode(base64Url.decode(b64)));
+      final exp = payload['exp'];
+      if (exp is! num) return true;
+      final nowSec = DateTime.now().toUtc().millisecondsSinceEpoch ~/ 1000;
+      return nowSec >= (exp.toInt() - leewaySec);
+    } catch (_) {
+      return true;
     }
   }
 
-  // ---- Supabase 인증 상태 리스너
-  void _initAuthListener() {
-  _sub?.cancel();
-  _sub = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
-    final session = data.session;
-    final event = data.event;
-
-    // ✅ initialSession이 들어오는데 session이 null이면 덮어쓰지 말고 스킵
-    if (event == AuthChangeEvent.initialSession && (session == null || session.accessToken.isEmpty)) {
-      debugPrint('⏭️ Auth state: initialSession(with null) — ignore (keep existing token)');
+  // ---- 앱 시작 시 저장된 세션/토큰 동기화
+  Future<void> _syncCurrentSessionOnAppStart() async {
+    // 1) Supabase 세션(카카오 OAuth) 우선
+    final supa = Supabase.instance.client.auth.currentSession;
+    if (supa != null && supa.accessToken.isNotEmpty) {
+      ref.read(authTokenProvider.notifier).state = supa.accessToken;
+      ref.read(authUserProvider.notifier).state = supa.user.toJson();
+      debugPrint('✅ App Start: Restored Supabase session');
+      _scheduleRefreshFrom(supa);
       return;
     }
 
-    // ✅ 여기부터는 진짜 세션 있을 때만 상태 반영
-    ref.read(authTokenProvider.notifier).state = session?.accessToken;
-    ref.read(authUserProvider.notifier).state = session?.user.toJson();
-    ref.read(authLastEventProvider.notifier).state = event;
-
-    debugPrint('✅ Auth state: $event  (hasSession=${session != null})');
-
-    if (event == AuthChangeEvent.signedIn || event == AuthChangeEvent.tokenRefreshed) {
-      _scheduleRefreshFrom(session);
-    } else if (event == AuthChangeEvent.signedOut) {
-      _cancelRefreshTimer();
+    // 2) 내 백엔드 JWT (SecureStorage) 복구
+    final access = await _storage.readAccessToken();
+    if (access != null && access.isNotEmpty && !_isJwtExpired(access)) {
+      ref.read(authTokenProvider.notifier).state = access;
+      ref.read(authUserProvider.notifier).state = null; // 서버 호출 시 채워짐
+      debugPrint('✅ App Start: Restored backend access token from storage');
+      // Supabase 타이머는 없음(우리 http client가 401 자동 처리)
+    } else {
+      debugPrint('🤔 App Start: No valid token found');
     }
+  }
 
-    if (event == AuthChangeEvent.signedIn) {
-      _authService.ensureUserRow().catchError((e) {
-        debugPrint('[auth] ensureUserRow failed: $e');
-      });
-    }
-  });
-}
+  // ---- Supabase 인증 상태 리스너 (카카오 OAuth용)
+  void _initAuthListener() {
+    _sub?.cancel();
+    _sub = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      final session = data.session;
+      final event = data.event;
 
+      if (event == AuthChangeEvent.initialSession &&
+          (session == null || session.accessToken.isEmpty)) {
+        debugPrint(
+            '⏭️ Auth state: initialSession(null) — ignore (keep existing token)');
+        return;
+      }
 
-  // ---- 만료 45초 전에 refreshSession() 실행
+      ref.read(authTokenProvider.notifier).state = session?.accessToken;
+      ref.read(authUserProvider.notifier).state = session?.user.toJson();
+      ref.read(authLastEventProvider.notifier).state = event;
+
+      debugPrint('✅ Auth state: $event  (hasSession=${session != null})');
+
+      if (event == AuthChangeEvent.signedIn ||
+          event == AuthChangeEvent.tokenRefreshed) {
+        _scheduleRefreshFrom(session);
+      } else if (event == AuthChangeEvent.signedOut) {
+        _cancelRefreshTimer();
+        // Supabase 로그아웃 시 우리 저장소도 비워둠(혼선 방지)
+        _storage.clearAll();
+      }
+
+      if (event == AuthChangeEvent.signedIn) {
+        _authService.ensureUserRow().catchError((e) {
+          debugPrint('[auth] ensureUserRow failed: $e');
+        });
+      }
+    });
+  }
+
+  // ---- Supabase 전용: 만료 45초 전에 refreshSession()
   void _scheduleRefreshFrom(Session? s) {
     _cancelRefreshTimer();
     if (s == null) return;
 
-    // Supabase가 주는 남은 수명(초). null이면 3600초(60분)로 가정.
     int ttlSec = s.expiresIn ?? 3600;
-    // 안전하게 45초 전에 실행
     int lead = ttlSec - 45;
     if (lead <= 0) lead = 1;
 
     final delay = Duration(seconds: lead);
-    debugPrint('⏰ schedule token refresh in ${delay.inSeconds}s');
+    debugPrint('⏰ schedule supabase token refresh in ${delay.inSeconds}s');
 
     _refreshTimer = Timer(delay, () async {
       try {
         await Supabase.instance.client.auth.refreshSession();
-        debugPrint('🔄 token refresh triggered by timer');
+        debugPrint('🔄 supabase token refresh by timer');
       } catch (e) {
-        debugPrint('❗ token refresh failed: $e');
+        debugPrint('❗ supabase token refresh failed: $e');
       }
     });
   }
@@ -125,51 +157,65 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
   }
 
   // -------------------------------
-  // 이메일/비번 로그인 (백엔드)
+  // 이메일/비번 로그인 (우리 백엔드)
   // -------------------------------
-Future<void> login(String email, String password) async {
+  Future<void> login(String email, String password) async {
   if (state.isLoading) return;
   state = const AsyncValue.loading();
 
   try {
-    // 백엔드 로그인 호출 (Map 형태를 반환한다고 가정)
-    final result = await _authService.login(email, password);
+    // 로그인은 항상 Map을 반환
+    final Map<String, dynamic> result = await _authService.login(email, password);
 
-    String? token;
-    if (result is Map) {
-      final m = Map<String, dynamic>.from(result);
-      if (m['session'] is Map) {
-        final sess = Map<String, dynamic>.from(m['session'] as Map);
-        token = sess['access_token']?.toString();
-      } else {
-        token = m['access_token']?.toString();
+    String? access;
+    String? refresh;
+
+    final m = result;
+
+    // 1) session 래핑 형태
+    if (m['session'] is Map) {
+      final sess = Map<String, dynamic>.from(m['session'] as Map);
+      access  = (sess['access_token'] ?? sess['accessToken'])?.toString();
+      refresh = (sess['refresh_token'] ?? sess['refreshToken'])?.toString();
+    } else {
+      // 2) 최상위 키
+      access  = (m['access_token'] ?? m['accessToken'] ?? m['token'])?.toString();
+      refresh = (m['refresh_token'] ?? m['refreshToken'])?.toString();
+
+      // 3) 혹시 data 래핑돼 온 경우까지 방어
+      if ((access == null || access.isEmpty) && m['data'] is Map) {
+        final d = Map<String, dynamic>.from(m['data'] as Map);
+        access  = (d['access_token'] ?? d['accessToken'] ?? d['token'])?.toString();
+        refresh = (d['refresh_token'] ?? d['refreshToken'])?.toString();
       }
-    } else if (result is String) {
-      token = result as String; // ← 명시 캐스트 (또는 result.toString())
     }
 
-    if (token == null || token.isEmpty) {
+    if (access == null || access.isEmpty) {
       throw Exception('로그인 성공 응답에 access_token이 없습니다.');
     }
 
-    // ── 전역 토큰 주입 + 저장
-    ref.read(authTokenProvider.notifier).state = token;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('access_token', token);
-  
-    // ── 라우팅은 redirect가 처리하도록 ping만
+    // 저장/주입 (TokenStorage 사용)
+    await _storage.saveAccessToken(access);
+    if (refresh != null && refresh.isNotEmpty) {
+      await _storage.saveRefreshToken(refresh);
+    }
+    await _storage.saveLoginPayload({
+      'type': 'password',
+      'email': email,
+      'password': password,
+    });
+
+    ref.read(authTokenProvider.notifier).state = access;
+    ref.read(routerPingProvider).ping();
+    state = const AsyncValue.data(null);
   } catch (e, st) {
-    // ── 에러 상태 반영
     state = AsyncValue.error(e, st);
     rethrow;
   }
 }
 
-
-
-
   // -------------------------------
-  // 카카오 로그인 (Supabase OAuth) — 그대로 둠
+  // 카카오 로그인 (Supabase OAuth)
   // -------------------------------
   Future<void> loginWithKakao() async {
     if (state.isLoading) return;
@@ -186,15 +232,15 @@ Future<void> login(String email, String password) async {
   // -------------------------------
   // 로그아웃
   // -------------------------------
-   Future<void> logout() async {
+  Future<void> logout() async {
     state = const AsyncValue.loading();
     try {
-      // ✅ 서비스의 로그아웃 함수만 호출합니다.
-      //    마찬가지로 `onAuthStateChange` 리스너가 로그아웃 상태를 감지하고
-      //    Provider들을 알아서 null로 비워줄 것입니다.
-      await _authService.signOut();
+      await _authService.signOut(); // supabase & prefs 정리
+      await _storage.clearAll();    // secure storage 정리
 
-      // ❌ 수동으로 토큰을 지우고 Provider를 비우는 코드를 모두 제거했습니다.
+      // Provider는 supabase listener가 지워주지만 혹시 모를 잔여치우기
+      ref.read(authTokenProvider.notifier).state = null;
+      ref.read(authUserProvider.notifier).state = null;
 
       routerPing.ping();
       state = const AsyncValue.data(null);
@@ -229,7 +275,7 @@ Future<void> login(String email, String password) async {
   }
 
   // -------------------------------
-  // 회원가입 흐름
+  // 회원가입/인증 흐름 (변경 없음)
   // -------------------------------
   Future<String?> requestInitialVerification({
     required String email,
@@ -350,35 +396,5 @@ Future<void> login(String email, String password) async {
       ref.read(authErrorProvider.notifier).state = e.toString();
       state = AsyncValue.error(e, st);
     }
-  }
-
-  // ==========================
-  // ⬇️ 반환 타입과 무관하게 토큰만 추출
-  // ==========================
-  String? _extractToken(dynamic res) {
-    if (res == null) return null;
-
-    // 1) String 그대로
-    if (res is String) return res;
-
-    // 2) Supabase 타입
-    if (res is Session) return res.accessToken;
-    if (res is AuthResponse) return res.session?.accessToken;
-
-    // 3) Map(JSON) 계열
-    if (res is Map) {
-      final s = res['session'];
-      if (s is Map && s['access_token'] is String) {
-        return s['access_token'] as String;
-      }
-      if (res['access_token'] is String) {
-        return res['access_token'] as String;
-      }
-      final d = res['data'];
-      if (d is Map && d['access_token'] is String) {
-        return d['access_token'] as String;
-      }
-    }
-    return null;
   }
 }

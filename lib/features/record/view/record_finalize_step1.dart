@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:moods/features/record/controller/record_controller.dart';
-import 'package:moods/features/record/view/record_card_preview.dart';
+import 'package:moods/features/record/widget/widget.dart';
 import 'record_finalize_step2.dart'; // Step2로 이동
 
 /// ===============================
@@ -20,39 +20,29 @@ Future<void> showRecordFinalizeFlow(BuildContext context) async {
 }
 
 /// ===== Color & Style Tokens =====
-/// (언더스코프 제거 → 다른 파일에서도 import해서 사용 가능)
 class C {
-  static const bg           = Color(0xFFF3F5FF);
-  static const sheetTop     = Colors.white;
-  static const cardFill     = Color(0xFFE9ECFF);
-  static const inputFill    = Colors.white;
-  static const chipStroke   = Color(0xFFE8EBF8);
-  static const purple       = Color(0xFF6B6BE5);
-  static const purpleSoft   = Color(0xFFA7B3F1);
-  static const textMain     = Color(0xFF1B1C20);
-  static const textSub      = Color(0xFF9094A9);
+  static const bg           = Color(0xFFF3F5FF); // 전체 페이지
+  static const headerBg     = Color(0xFFA7B3F1); // (예전 상단 보라, 지금은 안씀)
+  static const surface      = Colors.white;      // 흰 카드
+  static const chipStroke   = Color(0xFFE5E7F4);
+  static const primarySoft  = Color(0xFFA7B3F1);
+  static const primaryDeep  = Color(0xFFA7B3F1);
+  static const textMain     = Color(0xFF111318);
+  static const textSub      = Color(0xFF8C90A4);
   static const textWeak     = Color(0xFFB7BED6);
   static const disabledFill = Color(0xFFF0F2F8);
   static const disabledTxt  = Color(0xFFB9C0D6);
-  static const ghost        = Color(0xFFEDEFFF);
 }
 
 class S {
-  static const h48 = 48.0;
+  static const r8  = Radius.circular(8);
   static const r12 = Radius.circular(12);
   static const r16 = Radius.circular(16);
-  static const r20 = Radius.circular(20);
 }
 
 /// 라벨/태그 상수
 const MOOD_TAGS = <String>[
   '트렌디한','감성적인','개방적인','자연친화적인','컨셉있는','활기찬','아늑한','조용한',
-];
-const EMOTION_TAGS = <String>[
-  '기쁨','보통','슬픔','화남','아픔','멘붕','졸림','피곤','지루함','애매모호',
-];
-const PLACE_FEATURES = <String>[
-  '콘센트 많음','와이파이 퀄리티 좋음','소음 높음','소음 낮음','자리 많음',
 ];
 
 /// helpers
@@ -80,55 +70,72 @@ class FinalizeStep1Screen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: C.bg,
       appBar: AppBar(
-        backgroundColor: C.sheetTop,
+        backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
-        title: const Text('기록하기',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+        title: const Text(
+          '기록하기',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: C.textMain),
+        ),
         leading: IconButton(
-          icon: const Icon(Icons.close),
+          icon: const Icon(Icons.close, color: C.textMain),
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 20 + 56 + 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 오늘 공부 카드
+            // ===== 상단: 보라 네모칸 제거. 그냥 텍스트만 =====
+            Row(
+              children: const [
+                _HeaderCheckDot(),
+                SizedBox(width: 8),
+                Text(
+                  '오늘 공부',
+                  style: TextStyle(
+                    fontSize: 26, height: 1.3, // 26/130
+                    fontWeight: FontWeight.w800,
+                    color: C.textMain,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              '다음 정보가 맞나요?',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: C.textSub),
+            ),
+            const SizedBox(height: 12),
+
+            // ===== 하얀 요약 카드: 날짜/순공/총시간만 =====
             Container(
               decoration: BoxDecoration(
-                color: C.cardFill,
-                borderRadius: BorderRadius.circular(12),
+                color: C.surface,
+                borderRadius: BorderRadius.circular(16),
               ),
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(children: const [
-                    Icon(Icons.check_circle, size: 20, color: C.purple),
-                    SizedBox(width: 8),
-                    Text('오늘 공부',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-                  ]),
-                  const SizedBox(height: 4),
-                  const Text('다음 정보가 맞나요?',
-                      style: TextStyle(fontSize: 12, color: C.textSub)),
-                  const SizedBox(height: 12),
-                  SummaryRow(label: '날짜', value: ymd(startedAt)),
-                  SummaryRow(label: '순 공부 시간', value: fmtDur(st.elapsed)),
-                  SummaryRow(
-                    label: '총 시간',
-                    value: fmtDur(endedAt.difference(startedAt)),
-                  ),
+                  _SummaryRowPlain(label: '날짜', value: ymd(startedAt)),
+                  const SizedBox(height: 8),
+                  _SummaryRowPlain(label: '순 공부 시간', value: fmtDur(st.elapsed)),
+                  const SizedBox(height: 8),
+                  _SummaryRowPlain(label: '총 시간', value: fmtDur(endedAt.difference(startedAt))),
                 ],
               ),
             ),
 
-            const SizedBox(height: 20),
+            // ▼▼ 여기를 더 띄워서 "공간 무드" 섹션을 아래로 내림
+            const SizedBox(height: 40),
 
-            // 오늘 목표
-            const Text('오늘 목표',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            // ===== 오늘 목표 =====
+            const Text(
+              '오늘 목표',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: C.textMain),
+            ),
             const SizedBox(height: 12),
 
             ...st.goals.asMap().entries.map((e) {
@@ -136,262 +143,68 @@ class FinalizeStep1Screen extends ConsumerWidget {
               final g = e.value;
               final bool disabled = g.text.trim().isEmpty;
 
-              return GoalPillRow(
-                text: g.text.isEmpty ? '목표' : g.text,
+              return GoalPillRow( // ⬅️ 공용 위젯 사용
+                text: g.text,
                 done: g.done,
                 disabled: disabled,
                 onToggle: (v) => ctrl.toggleGoal(i, v, context: context),
               );
             }),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 40), // 공간 무드 섹션 위 간격 추가
 
-            // 공간 무드
-            const Text('공간 무드',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 10),
-
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: MOOD_TAGS.map((m) {
-                final on = st.selectedMoods.contains(m);
-                return FilterChip(
-                  label: Text(
-                    m,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: on ? Colors.white : C.textMain,
-                    ),
-                  ),
-                  labelPadding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                  shape: StadiumBorder(
-                    side: BorderSide(color: on ? C.purpleSoft : C.chipStroke),
-                  ),
-                  backgroundColor: Colors.white,
-                  selectedColor: C.purpleSoft,
-                  showCheckmark: false,
-                  selected: on,
-                  onSelected: (_) => ctrl.toggleMood(m),
-                );
-              }).toList(),
+            // ===== 공간 무드 =====
+            const Text(
+              '공간 무드',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: C.textMain),
             ),
+            const SizedBox(height: 14),
 
-            const SizedBox(height: 24),
-
-            // 다음 버튼
-            SizedBox(
-              height: S.h48,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: canNext ? C.purple : C.purple.withOpacity(.35),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                onPressed: canNext
-                    ? () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            fullscreenDialog: true,
-                            builder: (_) => const FinalizeStep2Screen(),
-                          ),
-                        );
-                      }
-                    : null,
-                child: const Text(
-                  '다음',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                ),
-              ),
+            // ⬅️ 3/3/2 고정 배치 공용 위젯 사용
+            MoodChipsFixedGrid(
+              selected: st.selectedMoods,
+              onTap: (m) => ctrl.toggleMood(m),
             ),
           ],
         ),
       ),
-    );
-  }
-}
 
-/// ===== 공용 위젯들 (Step2에서도 import해서 사용) =====
-
-class SummaryRow extends StatelessWidget {
-  final String label;
-  final String value;
-  const SummaryRow({super.key, required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 92,
-            child: Text(label,
-                style: const TextStyle(
-                    fontSize: 12, color: C.textSub, fontWeight: FontWeight.w600)),
-          ),
-          Expanded(
-            child: Container(
-              height: 36,
-              alignment: Alignment.centerLeft,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                color: C.inputFill,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(value,
-                  style: const TextStyle(
-                      fontSize: 14, color: C.textMain, fontWeight: FontWeight.w700)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class GoalPillRow extends StatelessWidget {
-  final String text;
-  final bool done;
-  final bool disabled;
-  final Future<void> Function(bool) onToggle;
-
-  const GoalPillRow({
-    super.key,
-    required this.text,
-    required this.done,
-    required this.disabled,
-    required this.onToggle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final Color pillBg = disabled ? C.disabledFill : (done ? C.purpleSoft : Colors.white);
-    final Color txt    = disabled ? C.disabledTxt  : (done ? Colors.white : C.textMain);
-    final Color boxBg  = disabled ? C.disabledFill : (done ? C.purple : const Color(0xFFE8ECF6));
-    final Color iconCol= disabled ? C.textSub      : (done ? Colors.white : C.textWeak);
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          InkWell(
-            onTap: disabled ? null : () => onToggle(!done),
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              width: 28, height: 28,
-              decoration: BoxDecoration(color: boxBg, borderRadius: BorderRadius.circular(8)),
-              alignment: Alignment.center,
-              child: Icon(disabled ? Icons.close_rounded : Icons.check_rounded,
-                  size: 18, color: iconCol),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: InkWell(
-              onTap: disabled ? null : () => onToggle(!done),
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                height: 36,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                alignment: Alignment.centerLeft,
-                decoration: BoxDecoration(color: pillBg, borderRadius: BorderRadius.circular(8)),
-                child: Text(
-                  text,
-                  maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: txt),
+      /// 하단 고정 CTA
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+          child: SizedBox(
+            height: 56,
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: canNext
+                  ? () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          fullscreenDialog: true,
+                          builder: (_) => const FinalizeStep2Screen(),
+                        ),
+                      );
+                    }
+                  : null,
+              style: ButtonStyle(
+                elevation: const MaterialStatePropertyAll(0),
+                backgroundColor: MaterialStateProperty.resolveWith((states) {
+                  if (states.contains(MaterialState.disabled)) {
+                    return C.primarySoft.withOpacity(0.35);
+                  }
+                  return C.primaryDeep;
+                }),
+                shape: MaterialStatePropertyAll(
+                  RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                 ),
               ),
+              child: const Text(
+                '다음',
+                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800),
+              ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// 공통 라벨
-class FieldLabel extends StatelessWidget {
-  final String text;
-  const FieldLabel(this.text, {super.key});
-  @override
-  Widget build(BuildContext context) {
-    return Text(text,
-        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700));
-  }
-}
-
-/// 공통 인풋
-class InputBox extends StatelessWidget {
-  final TextEditingController controller;
-  final String hint;
-  const InputBox.text({super.key, required this.controller, required this.hint});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 44,
-      decoration: BoxDecoration(
-        color: C.inputFill,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: C.chipStroke),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      alignment: Alignment.centerLeft,
-      child: TextField(
-        controller: controller,
-        decoration: const InputDecoration(
-          border: InputBorder.none, isCollapsed: true,
-          hintStyle: TextStyle(color: C.textSub),
-        ).copyWith(hintText: hint),
-      ),
-    );
-  }
-}
-
-/// 감정 아래 배치되는 고스트 이미지 피커(시안 위치)
-class GhostImagePicker extends StatelessWidget {
-  final VoidCallback? onCameraTap;
-  final VoidCallback? onGalleryTap;
-
-  const GhostImagePicker({super.key, this.onCameraTap, this.onGalleryTap});
-
-  @override
-  Widget build(BuildContext context) {
-    const Color purple = Color(0xFF6C63FF);
-    return SizedBox(
-      height: 160,
-      width: double.infinity,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          decoration: BoxDecoration(
-            color: C.ghost,
-            border: Border.all(color: C.chipStroke),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text(
-                '공간을 함께 저장해보세요',
-                style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w600, fontSize: 16),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 14),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _IconButtonGhost(icon: Icons.photo_camera_outlined, color: purple, onTap: onCameraTap),
-                  const SizedBox(width: 20),
-                  _IconButtonGhost(icon: Icons.photo_library_outlined, color: purple, onTap: onGalleryTap),
-                ],
-              ),
-            ],
           ),
         ),
       ),
@@ -399,22 +212,53 @@ class GhostImagePicker extends StatelessWidget {
   }
 }
 
-class _IconButtonGhost extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final VoidCallback? onTap;
+/// ===============================
+/// 내부 컴포넌트
+/// ===============================
 
-  const _IconButtonGhost({required this.icon, required this.color, this.onTap});
+class _HeaderCheckDot extends StatelessWidget {
+  const _HeaderCheckDot();
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(10),
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.all(6),
-        child: Icon(icon, size: 28, color: color),
-      ),
+    return Container(
+      width: 22,
+      height: 22,
+      decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+      alignment: Alignment.center,
+      child: const Icon(Icons.check, size: 16, color: C.primaryDeep),
+    );
+  }
+}
+
+/// 라벨 Bold / 값 얇게(400)
+class _SummaryRowPlain extends StatelessWidget {
+  final String label;
+  final String value;
+  const _SummaryRowPlain({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 92,
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 14, fontWeight: FontWeight.w700, color: C.textMain),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.left,
+            style: const TextStyle(
+              fontSize: 14, fontWeight: FontWeight.w400, color: C.textMain),
+          ),
+        ),
+      ],
     );
   }
 }
