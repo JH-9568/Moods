@@ -6,6 +6,7 @@ import 'package:moods/common/constants/text_styles.dart';
 import 'package:moods/features/home/widget/study_time/study_time_controller.dart';
 import 'package:moods/features/home/widget/study_time/study_time_segmented.dart';
 import 'package:moods/features/home/widget/study_time/time_format.dart';
+import 'package:blur/blur.dart';
 
 class TotalStudyTimeWidget extends ConsumerWidget {
   final bool showSegment;
@@ -19,7 +20,9 @@ class TotalStudyTimeWidget extends ConsumerWidget {
     final timeTextWidget = AnimatedSwitcher(
       duration: const Duration(milliseconds: 180),
       child: _TimeText(
-        key: ValueKey('${state.loading}-${state.total.inSeconds}-${state.error}'),
+        key: ValueKey(
+          '${state.loading}-${state.total.inSeconds}-${state.error}',
+        ),
         timeText: state.loading ? '00:00:00' : formatHms(state.total),
         dimmed: state.loading,
       ),
@@ -30,7 +33,9 @@ class TotalStudyTimeWidget extends ConsumerWidget {
             padding: const EdgeInsets.only(top: 8.0),
             child: Text(
               '불러오기 실패: ${state.error}',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.red),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: Colors.red),
             ),
           )
         : const SizedBox.shrink();
@@ -41,14 +46,14 @@ class TotalStudyTimeWidget extends ConsumerWidget {
         // 배경 Glow
         Padding(
           padding: const EdgeInsets.only(top: 50),
-          child: ClipOval(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 15.0, sigmaY: 15.0),
-              child: Container(
-                width: 151,
-                height: 151,
-                color: const Color(0xFFE8EBF8).withOpacity(0.7),
-              ),
+          child: Blur(
+            blur: 15,
+            borderRadius: BorderRadius.circular(180),
+            blurColor: const Color(0xFFE8EBF8).withOpacity(0.7),
+            child: Container(
+              width: 151,
+              height: 151,
+              decoration: const BoxDecoration(shape: BoxShape.circle),
             ),
           ),
         ),

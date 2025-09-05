@@ -1,10 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:moods/features/home/widget/my_ranking/my_ranking_widget.dart';
 import 'package:moods/features/home/widget/study_record/providers/study_record_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:moods/common/widgets/custom_app_bar.dart';
 import 'package:moods/common/constants/colors.dart';
 import 'package:moods/features/home/widget/my_moods/my_moods_section.dart';
-import 'package:moods/features/home/widget/my_ranking/my_ranking_section.dart';
 import 'package:moods/features/home/widget/study_count/study_count_widget.dart';
 import 'package:moods/common/constants/text_styles.dart';
 import 'package:moods/features/home/widget/study_record/study_record_empty.dart';
@@ -58,7 +58,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               const SizedBox(height: 16),
 
               // 2. 나의 공간 랭킹 (빈 상태)
-              const RankingEmptyCard(),
+              const MyRankingWidget(),
               const SizedBox(height: 16),
 
               // 3. 공부 기록 (빈 상태)

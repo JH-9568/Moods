@@ -1,9 +1,8 @@
+// lib/features/home/widget/my_ranking/my_ranking_empty.dart
 import 'package:flutter/material.dart';
 import 'package:moods/common/constants/colors.dart';
 import 'package:moods/common/constants/text_styles.dart';
 
-/// 홈 화면의 "나의 공간 랭킹" 빈 상태 섹션을 단독 위젯으로 분리.
-/// HomeScreen의 _buildCard 스타일을 그대로 복제해서 동일한 UI를 유지한다.
 class RankingEmptyCard extends StatelessWidget {
   const RankingEmptyCard({super.key});
 

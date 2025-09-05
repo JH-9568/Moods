@@ -16,7 +16,8 @@ final routerPingProvider = Provider((ref) => routerPing);
 Future<void> _initServices() async {
   await Supabase.initialize(
     url: 'https://wrokgtvjuwlmrdqdcytc.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indyb2tndHZqdXdsbXJkcWRjeXRjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIyNDMyNjksImV4cCI6MjA2NzgxOTI2OX0.Rdbu0Q9sdv4yAo2k37CRdTVi-raAizqCRcQ8FcKhTBs', // 그대로
+    anonKey:
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indyb2tndHZqdXdsbXJkcWRjeXRjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIyNDMyNjksImV4cCI6MjA2NzgxOTI2OX0.Rdbu0Q9sdv4yAo2k37CRdTVi-raAizqCRcQ8FcKhTBs', // 그대로
     authOptions: const FlutterAuthClientOptions(
       authFlowType: AuthFlowType.pkce,
       autoRefreshToken: true,
@@ -32,7 +33,9 @@ bool _isJwtExpired(String token, {int leewaySec = 30}) {
     final parts = token.split('.');
     if (parts.length != 3) return true;
     var b64 = parts[1].replaceAll('-', '+').replaceAll('_', '/');
-    while (b64.length % 4 != 0) { b64 += '='; }
+    while (b64.length % 4 != 0) {
+      b64 += '=';
+    }
     final payload = jsonDecode(utf8.decode(base64Url.decode(b64)));
     final exp = payload['exp'];
     if (exp is! num) return true;
@@ -67,7 +70,8 @@ class _Bootstrap extends StatelessWidget {
             if (!prefsSnap.hasData) return _loading();
 
             final prefs = prefsSnap.data!;
-            final supaToken = Supabase.instance.client.auth.currentSession?.accessToken;
+            final supaToken =
+                Supabase.instance.client.auth.currentSession?.accessToken;
             final customToken = prefs.getString('access_token');
 
             // ▷ 유효한 토큰만 선택 (Supabase > custom 폴백)
@@ -78,7 +82,9 @@ class _Bootstrap extends StatelessWidget {
 
             final router = createAppRouter();
 
-            print('🚀 App bootstrap initial token: ${initialToken == null ? "(none)" : initialToken.substring(0, 12) + "•••"}');
+            print(
+              '🚀 App bootstrap initial token: ${initialToken == null ? "(none)" : initialToken.substring(0, 12) + "•••"}',
+            );
 
             return ProviderScope(
               overrides: [
@@ -108,12 +114,12 @@ class _Bootstrap extends StatelessWidget {
   }
 
   Widget _loading() => const MaterialApp(
-        debugShowCheckedModeBanner: false,
-        home: Scaffold(
-          backgroundColor: Colors.white,
-          body: Center(child: CircularProgressIndicator()),
-        ),
-      );
+    debugShowCheckedModeBanner: false,
+    home: Scaffold(
+      backgroundColor: Colors.white,
+      body: Center(child: CircularProgressIndicator()),
+    ),
+  );
 }
 
 /// Supabase onAuthStateChange → authTokenProvider & SharedPreferences 동기화
@@ -169,4 +175,3 @@ void initState() {
   @override
   Widget build(BuildContext context) => widget.child;
 }
-
