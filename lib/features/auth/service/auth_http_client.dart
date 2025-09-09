@@ -23,31 +23,45 @@ class AuthHttpClient extends http.BaseClient {
 
     // 2) 전송
     final first = await base.send(request);
-    if (first.statusCode != 401) return first;
+    if (!_isAuthError(first.statusCode)) return first;
 
-    // 3) 401 → 저장된 이메일/비번으로 재로그인해서 access 재발급 후 재시도
-    final reloginOk = await auth.reloginWithSavedCredentials();
-    if (reloginOk) {
-      final retry = _cloneForRetry(request);
-      await _injectAuthHeaderIfAny(retry);
-      final second = await base.send(retry);
-      if (second.statusCode != 401) return second;
+    // 3) 새 규격: refresh 토큰으로 access 재발급 → 재시도
+    final refreshed = await auth.refreshAccessToken();
+    if (refreshed) {
+      final retry1 = _cloneForRetry(request);
+      await _injectAuthHeaderIfAny(retry1);
+      final second = await base.send(retry1);
+      if (!_isAuthError(second.statusCode)) return second;
     }
 
-    // 4) (카카오/Supabase 경로) 세션이 있다면 refreshSession 시도 후 재시도
+    // 4) 백업 루트: 저장된 이메일/비번으로 재로그인 → 재시도
+    final reloginOk = await auth.reloginWithSavedCredentials();
+    if (reloginOk) {
+      final retry2 = _cloneForRetry(request);
+      await _injectAuthHeaderIfAny(retry2);
+      final third = await base.send(retry2);
+      if (!_isAuthError(third.statusCode)) return third;
+    }
+
+    // 5) (카카오/Supabase 경로) 세션 리프레시 → 재시도
     try {
       final supa = Supabase.instance.client;
       if (supa.auth.currentSession != null) {
         await supa.auth.refreshSession();
-        final retry2 = _cloneForRetry(request);
-        await _injectAuthHeaderIfAny(retry2);
-        final third = await base.send(retry2);
-        return third;
+        final retry3 = _cloneForRetry(request);
+        await _injectAuthHeaderIfAny(retry3);
+        final fourth = await base.send(retry3);
+        return fourth;
       }
-    } catch (_) {}
+    } catch (_) {
+      // ignore
+    }
 
+    // 6) 모든 재시도가 실패하면 최초 응답 반환
     return first;
   }
+
+  bool _isAuthError(int code) => code == 401 || code == 403;
 
   Future<void> _injectAuthHeaderIfAny(http.BaseRequest req) async {
     // ① 내 백엔드 액세스 토큰 → ② Supabase 세션 토큰 순으로 시도
@@ -56,7 +70,6 @@ class AuthHttpClient extends http.BaseClient {
 
     if (token != null && token.isNotEmpty) {
       var header = token.trim();
-      // 🔒 무조건 Bearer 접두사 보장(대소문자 무시)
       if (!header.toLowerCase().startsWith('bearer ')) {
         header = 'Bearer $header';
       }
@@ -74,6 +87,7 @@ class AuthHttpClient extends http.BaseClient {
   }
 
   http.Request _cloneForRetry(http.BaseRequest req) {
+    // (멀티파트 안 쓰는 전제) body를 다시 넣어 재시도
     final copy = http.Request(req.method, req.url);
     copy.headers.addAll(req.headers);
     copy.followRedirects = req.followRedirects;

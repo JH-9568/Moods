@@ -2,6 +2,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart'; // ✅ 홈으로 이동하려고 추가
 
 import 'package:moods/features/record/controller/record_controller.dart';
 import 'package:moods/features/record/widget/widget.dart';
@@ -21,9 +22,9 @@ Future<void> showRecordFinalizeFlow(BuildContext context) async {
 
 /// ===== Color & Style Tokens =====
 class C {
-  static const bg           = Color(0xFFF3F5FF); // 전체 페이지
-  static const headerBg     = Color(0xFFA7B3F1); // (예전 상단 보라, 지금은 안씀)
-  static const surface      = Colors.white;      // 흰 카드
+  static const bg           = Color(0xFFF3F5FF);
+  static const headerBg     = Color(0xFFA7B3F1);
+  static const surface      = Colors.white;
   static const chipStroke   = Color(0xFFE5E7F4);
   static const primarySoft  = Color(0xFFA7B3F1);
   static const primaryDeep  = Color(0xFFA7B3F1);
@@ -79,7 +80,16 @@ class FinalizeStep1Screen extends ConsumerWidget {
         ),
         leading: IconButton(
           icon: const Icon(Icons.close, color: C.textMain),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () async {
+            final quit = await _showQuitConfirmDialog(context);
+            if (quit == true) {
+              final ok = await ctrl.quit(context: context);
+              if (ok && context.mounted) {
+                // ✅ 홈으로 이동 (앱의 홈 경로가 /home 이므로)
+                context.go('/home');
+              }
+            }
+          },
         ),
       ),
 
@@ -88,7 +98,6 @@ class FinalizeStep1Screen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ===== 상단: 보라 네모칸 제거. 그냥 텍스트만 =====
             Row(
               children: const [
                 _HeaderCheckDot(),
@@ -96,7 +105,7 @@ class FinalizeStep1Screen extends ConsumerWidget {
                 Text(
                   '오늘 공부',
                   style: TextStyle(
-                    fontSize: 26, height: 1.3, // 26/130
+                    fontSize: 26, height: 1.3,
                     fontWeight: FontWeight.w800,
                     color: C.textMain,
                   ),
@@ -110,7 +119,6 @@ class FinalizeStep1Screen extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
 
-            // ===== 하얀 요약 카드: 날짜/순공/총시간만 =====
             Container(
               decoration: BoxDecoration(
                 color: C.surface,
@@ -128,10 +136,8 @@ class FinalizeStep1Screen extends ConsumerWidget {
               ),
             ),
 
-            // ▼▼ 여기를 더 띄워서 "공간 무드" 섹션을 아래로 내림
             const SizedBox(height: 40),
 
-            // ===== 오늘 목표 =====
             const Text(
               '오늘 목표',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: C.textMain),
@@ -143,7 +149,7 @@ class FinalizeStep1Screen extends ConsumerWidget {
               final g = e.value;
               final bool disabled = g.text.trim().isEmpty;
 
-              return GoalPillRow( // ⬅️ 공용 위젯 사용
+              return GoalPillRow(
                 text: g.text,
                 done: g.done,
                 disabled: disabled,
@@ -151,16 +157,14 @@ class FinalizeStep1Screen extends ConsumerWidget {
               );
             }),
 
-            const SizedBox(height: 40), // 공간 무드 섹션 위 간격 추가
+            const SizedBox(height: 40),
 
-            // ===== 공간 무드 =====
             const Text(
               '공간 무드',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: C.textMain),
             ),
             const SizedBox(height: 14),
 
-            // ⬅️ 3/3/2 고정 배치 공용 위젯 사용
             MoodChipsFixedGrid(
               selected: st.selectedMoods,
               onTap: (m) => ctrl.toggleMood(m),
@@ -169,7 +173,6 @@ class FinalizeStep1Screen extends ConsumerWidget {
         ),
       ),
 
-      /// 하단 고정 CTA
       bottomNavigationBar: SafeArea(
         top: false,
         child: Padding(
@@ -216,6 +219,58 @@ class FinalizeStep1Screen extends ConsumerWidget {
 /// 내부 컴포넌트
 /// ===============================
 
+/// X를 눌렀을 때 표시되는 확인 다이얼로그
+/// true  → “아니요, 나갈래요” (quit)
+/// false → “네, 계속 저장할래요” (그대로 머무름)
+Future<bool?> _showQuitConfirmDialog(BuildContext context) {
+  return showDialog<bool>(
+    context: context,
+    builder: (ctx) {
+      return AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        contentPadding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
+        titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+        title: const Text(
+          '지금 나가면\n기록이 저장되지 않아요',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: C.textMain),
+        ),
+        content: const Text(
+          '이어서 기록을 저장하시겠어요?',
+          style: TextStyle(fontSize: 14, color: C.textSub),
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        actions: [
+          Expanded(
+            child: FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: C.primaryDeep,
+                minimumSize: const Size.fromHeight(44),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('네\n기록을 저장할래요', textAlign: TextAlign.center),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(44),
+                side: const BorderSide(color: C.disabledTxt),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                foregroundColor: C.textMain,
+                backgroundColor: C.disabledFill,
+              ),
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('아니요\n나갈래요', textAlign: TextAlign.center),
+            ),
+          ),
+        ],
+      );
+    },
+  );
+}
+
 class _HeaderCheckDot extends StatelessWidget {
   const _HeaderCheckDot();
 
@@ -231,7 +286,6 @@ class _HeaderCheckDot extends StatelessWidget {
   }
 }
 
-/// 라벨 Bold / 값 얇게(400)
 class _SummaryRowPlain extends StatelessWidget {
   final String label;
   final String value;

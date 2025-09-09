@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 /// 디자인 토큰(컴포넌트 내부 전용)
 class _RB {
@@ -9,6 +10,47 @@ class _RB {
   static const textSub      = Color(0xFF8C90A4);
   static const disabledFill = Color(0xFFF0F2F8);
   static const disabledTxt  = Color(0xFFB9C0D6);
+
+  //  칩 테두리(연한 회색)
+  static const chipStroke   = Color(0xFFE5E7F4);
+}
+
+
+class ToggleSvg extends StatelessWidget {
+  final bool active;         // true=toggle_active, false=toggle_inactive
+  final bool disabled;       // 탭 막기 + opacity 낮춤
+  final VoidCallback? onTap;
+  final double size;
+
+  const ToggleSvg({
+    super.key,
+    required this.active,
+    required this.disabled,
+    this.onTap,
+    this.size = 28,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final asset = active
+        ? 'assets/fonts/icons/toggle_active.svg'
+        : 'assets/fonts/icons/toggle_inactive.svg';
+
+    return InkWell(
+      onTap: disabled ? null : onTap,
+      borderRadius: BorderRadius.circular(size / 2),
+      child: Opacity(
+        opacity: disabled ? 0.45 : 1.0,
+        child: SizedBox(
+          width: size,
+          height: size,
+          child: Center(
+            child: SvgPicture.asset(asset, width: size - 4, height: size - 4),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// ---------------
@@ -32,27 +74,15 @@ class GoalPillRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final Color pillBg = disabled ? _RB.disabledFill : (done ? _RB.primarySoft : _RB.surface);
     final Color txt    = disabled ? _RB.disabledTxt  : (done ? Colors.white : _RB.textMain);
-    final Color dotBg  = disabled ? _RB.disabledFill : (done ? _RB.primarySoft : const Color(0xFFE8ECF6));
-    final Color iconCol= disabled ? _RB.textSub      : (done ? Colors.white : _RB.textWeak);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(
         children: [
-          InkWell(
-            onTap: disabled ? null : () => onToggle(!done),
-            borderRadius: BorderRadius.circular(14),
-            child: Container(
-              width: 28,
-              height: 28,
-              decoration: BoxDecoration(color: dotBg, shape: BoxShape.circle),
-              alignment: Alignment.center,
-              child: Icon(
-                disabled ? Icons.close_rounded : Icons.check_rounded,
-                size: 18,
-                color: iconCol,
-              ),
-            ),
+          ToggleSvg(
+            active: done,
+            disabled: disabled,
+            onTap: () => onToggle(!done),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -60,7 +90,7 @@ class GoalPillRow extends StatelessWidget {
               onTap: disabled ? null : () => onToggle(!done),
               borderRadius: BorderRadius.circular(8),
               child: Container(
-                height: 40,
+                height: 30,
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 alignment: Alignment.centerLeft,
                 decoration: BoxDecoration(
@@ -68,7 +98,7 @@ class GoalPillRow extends StatelessWidget {
                   borderRadius: const BorderRadius.all(Radius.circular(8)),
                 ),
                 child: Text(
-                  text.isEmpty ? '목표' : text,
+                  text.isEmpty ? '목표 입력' : text,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: txt),
@@ -82,8 +112,9 @@ class GoalPillRow extends StatelessWidget {
   }
 }
 
+
 /// ---------------
-/// 공간 무드 칩 (테두리 없음, 높이 34, 내용폭)
+/// 공간 무드 칩 (연한 회색 테두리 + 선택 시 보라 채움)
 /// ---------------
 class _MoodChip extends StatelessWidget {
   final String label;
@@ -98,20 +129,30 @@ class _MoodChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color bg = selected ? _RB.primarySoft : Colors.white;
-    final Color fg = selected ? Colors.white : _RB.textMain;
+    final Color fill = selected ? _RB.primarySoft : Colors.white;
+    final Color fg   = selected ? Colors.white : _RB.textMain;
 
+    // Ink + ShapeDecoration을 써야 테두리(stroke)와 잉크 리플이 동시에 깔끔하게 나옴
     return Material(
-      color: bg,
+      color: Colors.transparent,
       shape: const StadiumBorder(),
-      child: InkWell(
-        onTap: onTap,
-        customBorder: const StadiumBorder(),
-        child: Container(
-          height: 34,
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          alignment: Alignment.center,
-          child: Text(label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: fg)),
+      child: Ink(
+        decoration: ShapeDecoration(
+          color: fill,
+          shape: const StadiumBorder(
+            side: BorderSide(color: _RB.chipStroke, width: 1), // ✅ 연한 회색 테두리
+          ),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          customBorder: const StadiumBorder(),
+          child: Container(
+            height: 34,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            alignment: Alignment.center,
+            // ✅ 텍스트 두께 살짝 낮춤(너무 볼드 X)
+            child: Text(label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: fg)),
+          ),
         ),
       ),
     );

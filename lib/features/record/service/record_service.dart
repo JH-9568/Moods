@@ -110,6 +110,45 @@ Future<Map<String, dynamic>> exportToRecord({
   return jsonDecode(res.body) as Map<String, dynamic>;
 }
 
+Future<Map<String, dynamic>?> fetchSpaceDetail(String spaceId) async {
+  if (spaceId.trim().isEmpty) return null;
+
+  final res = await client.get(
+    _u('/spaces/detail', {'space_id': spaceId}),
+    headers: _jsonHeaders,
+  );
+  if (res.statusCode ~/ 100 != 2) {
+    throw Exception('공간 상세 조회 실패: ${res.statusCode} ${res.body}');
+  }
+
+  final body = jsonDecode(res.body) as Map<String, dynamic>;
+  final list = (body['data'] as List? ?? const []);
+  if (list.isEmpty) return null;
+  return Map<String, dynamic>.from(list.first as Map);
+}
+
+
+ Future<bool> quitSession() async {
+    final res = await client.get(
+      _u('/study-sessions/quit'),
+      headers: _jsonHeaders, // Authorization은 AuthHttpClient가 넣어줌
+    );
+
+    // 세션이 없을 때 404를 정상 취소로 간주 (Postman엔 항상 200 예시)
+    if (res.statusCode == 404) return true;
+
+    // 2xx면 성공으로 처리 (바디가 비어있을 수도 있음)
+    if (res.statusCode ~/ 100 == 2) {
+      if (res.body.isEmpty) return true;
+      final body = jsonDecode(res.body);
+      if (body is Map && body['success'] == true) return true;
+      // success 필드 없으면 일단 성공 취급
+      return true;
+    }
+
+    throw Exception('세션 취소(quit) 실패: ${res.statusCode} ${res.body}');
+  }
+
 
 
   // 사용자의 현재 활성 세션 조회

@@ -1,5 +1,6 @@
 // lib/features/record/view/record_card_preview.dart
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 /// ===== 색상 토큰 (시안 기준) =====
 class RC {
@@ -10,19 +11,19 @@ class RC {
   static const textSub = Color(0xFF9094A9);
 }
 
-/// ===== 데이터 모델 (나중에 API 연결 시 채워서 넘겨) =====
+/// ===== 데이터 모델 =====
 class RecordCardData {
   final DateTime date;
   final Duration focusTime;     // 순 공부 시간
   final Duration totalTime;     // 총 시간
-  final String title;           // 예: "우주 이론 과목 중간고사 공부"
+  final String title;           // 카드 제목(공부 제목)
   final List<String> goalsDone; // 체크된 목표 목록
-  final List<String> moods;     // 이모지 포함 라벨 ["😊 기쁨", "😴 졸림" ...]
-  final String placeName;       // 예: "카페 칸나"
-  final String placeType;       // 예: "카페"
-  final String placeMood;       // 예: "소란 가끔"
-  final List<String> tags;      // ["콘센트 많음","소음 높음","자리 많음"]
-  final ImageProvider? background; // 카드 배경 (없으면 플레이스홀더)
+  final List<String> moods;     // 이모지 포함 라벨
+  final String placeName;       // 장소 이름
+  final String placeType;       // 공간 타입
+  final String placeMood;       // 공간 무드
+  final List<String> tags;      // 태그 칩
+  final ImageProvider? background; // 배경 이미지
 
   const RecordCardData({
     required this.date,
@@ -39,52 +40,59 @@ class RecordCardData {
   });
 }
 
-/// ===== 라우팅/화면: 기록카드 미리보기 =====
-/// 사용: Navigator.push(context, MaterialPageRoute(builder: (_) => RecordCardPreviewScreen(data: yourData)));
+/// ====== 프레젠터(오버레이) ======
+/// Step2에서: await showRecordCardPreview(context, data);
+Future<void> showRecordCardPreview(BuildContext context, RecordCardData data) {
+  return showGeneralDialog(
+    context: context,
+    barrierDismissible: false,
+    barrierColor: Colors.black.withOpacity(0.35), // ← 뒤 배경 살짝 어둡게
+    transitionDuration: const Duration(milliseconds: 160),
+    pageBuilder: (ctx, a1, a2) {
+      return _RecordCardOverlay(data: data);
+    },
+  );
+}
+
+/// ====== 기존 이름 유지용 스크린 래퍼 ======
+/// 라우트에서 RecordCardPreviewScreen(data: ...)을 그대로 써도 동일하게 보임.
 class RecordCardPreviewScreen extends StatelessWidget {
   final RecordCardData data;
   const RecordCardPreviewScreen({super.key, required this.data});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black.withOpacity(0.5),
-      body: SafeArea(
+    // showGeneralDialog가 아니어도 동일 UI가 나오도록 오버레이 뷰를 직접 렌더
+    return Material(
+      color: Colors.black.withOpacity(0.35), // showGeneralDialog와 동일 톤
+      child: _RecordCardOverlay(data: data),
+    );
+  }
+}
+
+class _RecordCardOverlay extends StatelessWidget {
+  final RecordCardData data;
+  const _RecordCardOverlay({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent, // 헤더 없음
+      child: SafeArea(
         child: Column(
           children: [
-            // 헤더
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              child: Row(
-                children: [
-                  const SizedBox(width: 40),
-                  const Expanded(
-                    child: Text(
-                      '기록카드',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-
-            // 카드 본체
+            const SizedBox(height: 12),
+            // 카드 영역
             Expanded(
               child: Center(
-                child: AspectRatio(
-                  aspectRatio: 9/16,
+                child: SizedBox(
+                  width: 329,
+                  height: 622,
                   child: _RecordCard(data: data),
                 ),
               ),
             ),
-
-            // 하단 버튼
+            // 확인 버튼
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
               child: SizedBox(
@@ -94,11 +102,16 @@ class RecordCardPreviewScreen extends StatelessWidget {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: RC.textPrimary,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                     elevation: 0,
                   ),
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('확인', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                  onPressed: () => context.go('/home'),
+                  child: const Text(
+                    '확인',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                  ),
                 ),
               ),
             ),
@@ -109,7 +122,7 @@ class RecordCardPreviewScreen extends StatelessWidget {
   }
 }
 
-/// ===== 단일 카드 위젯 (이미지+그라데이션+내용) =====
+/// ===== 단일 카드 위젯 =====
 class _RecordCard extends StatelessWidget {
   final RecordCardData data;
   const _RecordCard({required this.data});
@@ -117,17 +130,18 @@ class _RecordCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bg = data.background ??
-        const AssetImage('assets/images/sample_space.jpg'); // 없으면 플레이스홀더(없으면 교체 or 제거)
+        const AssetImage('assets/images/sample_space.jpg');
 
-    // 시간 포맷
+    // 포맷
     String two(int v) => v.toString().padLeft(2, '0');
-    String d2(Duration d) => '${two(d.inHours)}:${two(d.inMinutes % 60)}:${two(d.inSeconds % 60)}';
+    String d2(Duration d) =>
+        '${two(d.inHours)}:${two(d.inMinutes % 60)}:${two(d.inSeconds % 60)}';
     final y = data.date.year.toString().padLeft(4, '0');
     final m = two(data.date.month);
     final d = two(data.date.day);
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(8), // ← r=8
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -137,12 +151,12 @@ class _RecordCard extends StatelessWidget {
               image: DecorationImage(image: bg, fit: BoxFit.cover),
             ),
           ),
-          // 어둡게 + 위/아래 그라데이션
+          // 살짝 어둡게 + 위/아래 그라데이션
           Container(color: Colors.black.withOpacity(0.25)),
           Align(
             alignment: Alignment.topCenter,
             child: Container(
-              height: 180,
+              height: 200,
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
@@ -155,7 +169,7 @@ class _RecordCard extends StatelessWidget {
           Align(
             alignment: Alignment.bottomCenter,
             child: Container(
-              height: 220,
+              height: 230,
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.bottomCenter,
@@ -172,12 +186,17 @@ class _RecordCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // 상단 바: 제목 + 공유/다운로드
+                // 상단 바: "기록카드" + 공유/다운로드
                 Row(
                   children: [
                     const Text(
                       '기록카드',
-                      style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 26, // ← 26
+                        height: 1.30,  // ← 1.30
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     const Spacer(),
                     _RoundIcon(onTap: () {}, icon: Icons.ios_share_rounded),
@@ -186,47 +205,95 @@ class _RecordCard extends StatelessWidget {
                   ],
                 ),
 
-                const Spacer(),
+                // ***** 시간을 위로 당김: Spacer 제거하고 고정 여백만 *****
+                const SizedBox(height: 18),
 
-                // 날짜
+                // 날짜 (중앙정렬)
                 Text(
                   '$y-$m-$d',
-                  style: const TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w600),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 16, // ← 16
+                    height: 1.40,  // ← 1.40
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 8),
 
-                // 큰 시계 (순 공부 시간)
+                // 큰 시계 (순 공부 시간) 중앙정렬
                 FittedBox(
-                  alignment: Alignment.centerLeft,
+                  alignment: Alignment.center,
                   child: Text(
                     _fmtBigClock(data.focusTime),
+                    textAlign: TextAlign.center,
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 56,
+                      fontSize: 50,   // ← 50
+                      height: 1.30,   // ← 1.30
                       fontWeight: FontWeight.w700,
                       letterSpacing: 1.0,
                     ),
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 10),
 
-                // 총 시간
-                Text(
+                // 순 공부 시간 라벨/값
+                const Text(
                   '순 공부 시간',
-                  style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 12, fontWeight: FontWeight.w500),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Text(
+                  d2(data.focusTime),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16, // ← 16
+                    height: 1.60, // ← 1.60
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+
+                // 총 시간 라벨/값
+                const Text(
+                  '총 시간',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
                 Text(
                   d2(data.totalTime),
-                  style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16, // ← 16
+                    height: 1.60, // ← 1.60
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-                const SizedBox(height: 18),
 
-                // 제목
+                const SizedBox(height: 16),
+
+                // 제목 (중앙정렬)
                 Text(
                   data.title,
+                  textAlign: TextAlign.center,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: 10),
 
@@ -239,6 +306,7 @@ class _RecordCard extends StatelessWidget {
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
+                  alignment: WrapAlignment.center,
                   children: data.moods.map((m) => _EmojiPill(label: m)).toList(),
                 ),
                 const SizedBox(height: 14),
@@ -253,8 +321,14 @@ class _RecordCard extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(data.placeName,
-                              style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
+                          Text(
+                            data.placeName,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                           const SizedBox(height: 2),
                           Row(
                             children: [
@@ -327,14 +401,21 @@ class _GoalCheck extends StatelessWidget {
           Container(
             width: 18,
             height: 18,
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(5)),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(5),
+            ),
             child: const Icon(Icons.check_rounded, size: 16, color: RC.purple),
           ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -359,7 +440,11 @@ class _EmojiPill extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
@@ -378,7 +463,11 @@ class _TagPill extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700),
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }

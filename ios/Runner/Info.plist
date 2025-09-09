@@ -75,6 +75,13 @@
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 
+	<key>GMS_API_KEY</key>
+    <string>AIzaSyAlw5XkxY3Wsot5v2tsEv-0rC9QtuMYOX4</string>
+
+
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>현재 위치를 지도에 표시하기 위해 권한이 필요합니다.</string>
+
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>사진첩에서 이미지를 선택하기 위해 권한이 필요합니다.</string>
 	<key>NSCameraUsageDescription</key>
