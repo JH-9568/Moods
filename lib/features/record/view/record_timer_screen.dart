@@ -9,17 +9,17 @@ import 'package:go_router/go_router.dart';
 import 'record_finalize_step1.dart';
 import 'package:moods/features/record/controller/record_controller.dart';
 import 'fullscreen_timer.dart';
-// 공용 박스/칩 위젯
+import 'package:moods/common/widgets/back_button.dart';
 import 'package:moods/features/record/widget/widget.dart';
 
 const double _kFont16 = 16;
-const double _kLH160  = 1.6;
+const double _kLH160 = 1.6;
 
 const _kTextMain = Color(0xFF1B1C20);
-const _kTextSub  = Color(0xFF9094A9);
+const _kTextSub = Color(0xFF9094A9);
 
 const _kChipFillSelected = Color(0xFFA7B3F1);
-const _kChipStroke       = Color(0xFFE8EBF8);
+const _kChipStroke = Color(0xFFE8EBF8);
 
 class RecordTimerScreen extends ConsumerStatefulWidget {
   final StartArgs startArgs;
@@ -65,7 +65,8 @@ class _RecordTimerScreenState extends ConsumerState<RecordTimerScreen> {
         if (e.toString().contains('unexported_session_exists')) {
           // 미완료 세션 → 마무리 플로우로
           messenger?.showSnackBar(
-            const SnackBar(content: Text('마무리하지 않은 기록이 있습니다. 먼저 기록을 완료해주세요.')),
+            const SnackBar(
+                content: Text('마무리하지 않은 기록이 있습니다. 먼저 기록을 완료해주세요.')),
           );
           router.push('/record/finalize_step1');
         } else {
@@ -133,7 +134,8 @@ class _RecordTimerScreenState extends ConsumerState<RecordTimerScreen> {
         await ref.read(recordControllerProvider.notifier).finish();
       } catch (e) {
         final msg = e.toString();
-        if (!(msg.contains('이미 세션이 종료') || msg.toLowerCase().contains('already'))) {
+        if (!(msg.contains('이미 세션이 종료') ||
+            msg.toLowerCase().contains('already'))) {
           debugPrint('finish() error ignored: $e');
         }
       }
@@ -150,8 +152,8 @@ class _RecordTimerScreenState extends ConsumerState<RecordTimerScreen> {
     try {
       final data = await NetworkAssetBundle(Uri.parse(url)).load('');
       final Uint8List bytes = data.buffer.asUint8List();
-      final ui.Codec codec =
-          await ui.instantiateImageCodec(bytes, targetWidth: 1, targetHeight: 1);
+      final ui.Codec codec = await ui.instantiateImageCodec(bytes,
+          targetWidth: 1, targetHeight: 1);
       final ui.FrameInfo fi = await codec.getNextFrame();
       final ui.Image img = fi.image;
       final bd = await img.toByteData(format: ui.ImageByteFormat.rawRgba);
@@ -184,7 +186,9 @@ class _RecordTimerScreenState extends ConsumerState<RecordTimerScreen> {
       _wallIsDark = null;
     }
 
-    const cardColor = Color(0xFFC8CBF3);
+    // 시안 색상
+    const cardColor = Color(0xFFA7B3F1);
+
     final Color timeColor = hasImage
         ? (_wallIsDark == null
             ? Colors.white
@@ -286,120 +290,132 @@ class _RecordTimerScreenState extends ConsumerState<RecordTimerScreen> {
                   ),
                 ),
 
-                // ---- 본문 ----
+                // ---- 본문 (시안처럼 타이머에서 약 80px 아래에서 시작) ----
                 Expanded(
-                  child: DraggableScrollableSheet(
-                    controller: _dragCtrl,
-                    initialChildSize: 0.88,
-                    minChildSize: 0.60,
-                    maxChildSize: 1.00,
-                    builder: (_, scroll) => Container(
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFF9FAFF),
-                        borderRadius:
-                            BorderRadius.vertical(top: Radius.circular(16)),
-                      ),
-                      child: ListView(
-                        controller: scroll,
-                        padding: const EdgeInsets.fromLTRB(24, 20, 24, 120),
-                        children: [
-                          // ---- 공간 무드 ----
-                          const Text(
-                            '공간 무드',
-                            style: TextStyle(
-                              fontSize: _kFont16,
-                              height: _kLH160,
-                              fontWeight: FontWeight.w700,
-                              color: _kTextMain,
-                            ),
+                  child: LayoutBuilder(
+                    builder: (_, constraints) {
+                      const double kGapFromTimer = 30.0;
+                      final double h = constraints.maxHeight;
+                      double initial = (h - kGapFromTimer) / h;
+                      initial = initial.clamp(0.60, 1.00);
+
+                      return DraggableScrollableSheet(
+                        controller: _dragCtrl,
+                        initialChildSize: initial,
+                        minChildSize: 0.60,
+                        maxChildSize: 1.00,
+                        builder: (_, scroll) => Container(
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFF9FAFF),
+                            borderRadius:
+                                BorderRadius.vertical(top: Radius.circular(16)),
                           ),
-                          const SizedBox(height: 4),
-                          const Text(
-                            '공부하는 공간이 가지고 있는 분위기와 느낌을 선택해주세요.',
-                            style: TextStyle(
-                              fontSize: 12,
-                              height: 1.6,
-                              color: _kTextSub,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-
-                          // Step1과 동일한 3/3/2 칩 그리드
-                          MoodChipsFixedGrid(
-                            selected: st.selectedMoods,
-                            onTap: (m) => ctrl.toggleMood(m),
-                          ),
-
-                          const SizedBox(height: 24),
-
-                          // ---- 오늘 목표 ----
-                          const Text(
-                            '오늘 목표',
-                            style: TextStyle(
-                              fontSize: _kFont16,
-                              height: _kLH160,
-                              fontWeight: FontWeight.w700,
-                              color: _kTextMain,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-
-                          // Step1과 동일한 목표 Pill
-                          ...st.goals.asMap().entries.map((e) {
-                            final i = e.key;
-                            final g = e.value;
-                            final disabled = g.text.trim().isEmpty;
-                            return GoalPillRow(
-                              text: g.text.isEmpty ? '목표' : g.text,
-                              done: g.done,
-                              disabled: disabled,
-                              onToggle: (v) => ref
-                                  .read(recordControllerProvider.notifier)
-                                  .toggleGoal(i, v, context: context),
-                            );
-                          }),
-
-                          // 입력 행
-                          ..._draftCtrls.asMap().entries.map((e) {
-                            final c = e.value;
-                            return _GoalInputRow(
-                              controller: c,
-                              onSubmitted: (text) async {
-                                final t = text.trim();
-                                if (t.isEmpty) return;
-                                await ref
-                                    .read(recordControllerProvider.notifier)
-                                    .addGoal(t, context: context);
-                                c.clear();
-                              },
-                            );
-                          }),
-                          const SizedBox(height: 8),
-
-                          Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(10),
-                              onTap: () {
-                                setState(() {
-                                  _draftCtrls.add(TextEditingController());
-                                });
-                              },
-                              child: Container(
-                                height: 36,
-                                alignment: Alignment.center,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFEFF1FA),
-                                  borderRadius: BorderRadius.circular(10),
+                          child: ListView(
+                            controller: scroll,
+                            padding:
+                                const EdgeInsets.fromLTRB(24, 20, 24, 120),
+                            children: [
+                              // ---- 공간 무드 ----
+                              const Text(
+                                '공간 무드',
+                                style: TextStyle(
+                                  fontSize: _kFont16,
+                                  height: _kLH160,
+                                  fontWeight: FontWeight.w700,
+                                  color: _kTextMain,
                                 ),
-                                child: const Icon(Icons.add,
-                                    size: 26, color: Color(0xFF6B6BE5)),
                               ),
-                            ),
+                              const SizedBox(height: 4),
+                              const Text(
+                                '공부하는 공간이 가지고 있는 분위기와 느낌을 선택해주세요.',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  height: 1.6,
+                                  color: _kTextSub,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+
+                              // Step1과 동일한 3/3/2 칩 그리드
+                              MoodChipsFixedGrid(
+                                selected: st.selectedMoods,
+                                onTap: (m) => ctrl.toggleMood(m),
+                              ),
+
+                              const SizedBox(height: 24),
+
+                              // ---- 오늘 목표 ----
+                              const Text(
+                                '오늘 목표',
+                                style: TextStyle(
+                                  fontSize: _kFont16,
+                                  height: _kLH160,
+                                  fontWeight: FontWeight.w700,
+                                  color: _kTextMain,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+
+                              // Step1과 동일한 목표 Pill
+                              ...st.goals.asMap().entries.map((e) {
+                                final i = e.key;
+                                final g = e.value;
+                                final disabled = g.text.trim().isEmpty;
+                                return GoalPillRow(
+                                  text: g.text.isEmpty ? '목표' : g.text,
+                                  done: g.done,
+                                  disabled: disabled,
+                                  onToggle: (v) => ref
+                                      .read(recordControllerProvider.notifier)
+                                      .toggleGoal(i, v, context: context),
+                                );
+                              }),
+
+                              // 입력 행
+                              ..._draftCtrls.asMap().entries.map((e) {
+                                final c = e.value;
+                                return _GoalInputRow(
+                                  controller: c,
+                                  onSubmitted: (text) async {
+                                    final t = text.trim();
+                                    if (t.isEmpty) return;
+                                    await ref
+                                        .read(recordControllerProvider
+                                            .notifier)
+                                        .addGoal(t, context: context);
+                                    c.clear();
+                                  },
+                                );
+                              }),
+                              const SizedBox(height: 8),
+
+                              Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(10),
+                                  onTap: () {
+                                    setState(() {
+                                      _draftCtrls
+                                          .add(TextEditingController());
+                                    });
+                                  },
+                                  child: Container(
+                                    height: 36,
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFEFF1FA),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: const Icon(Icons.add,
+                                        size: 26, color: Color(0xFF6B6BE5)),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    ),
+                        ),
+                      );
+                    },
                   ),
                 ),
               ],
@@ -408,15 +424,12 @@ class _RecordTimerScreenState extends ConsumerState<RecordTimerScreen> {
 
           // ---- 하단 뒤로가기 ----
           Positioned(
-            left: 16,
-            bottom: 24,
+            left: 0,
+            bottom: 0,
             child: SafeArea(
               top: false,
-              child: IconButton(
-                icon: const Icon(Icons.arrow_back, size: 24),
-                color: Colors.black87,
-                onPressed: () => Navigator.of(context).maybePop(),
-              ),
+              minimum: const EdgeInsets.only(left:12, bottom: 0),
+              child: GlobalBackButton(color: Colors.black87),
             ),
           ),
         ],
@@ -427,8 +440,14 @@ class _RecordTimerScreenState extends ConsumerState<RecordTimerScreen> {
 
 // 라벨 목록 (아늑한 ↔ 조용한 나란히)
 const List<String> _moodTags = [
-  '트렌디한', '감성적인', '개방적인', '자연친화적인',
-  '컨셉있는', '활기찬', '아늑한', '조용한',
+  '트렌디한',
+  '감성적인',
+  '개방적인',
+  '자연친화적인',
+  '컨셉있는',
+  '활기찬',
+  '아늑한',
+  '조용한',
 ];
 
 // ---- 목표 입력 ----
@@ -446,15 +465,10 @@ class _GoalInputRow extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
-          Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              color: const Color(0xFFE8ECF6),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            alignment: Alignment.center,
-            child: const Icon(Icons.done_rounded, size: 20, color: Color(0xFFB7BED6)),
+          ToggleSvg(
+            active: false,
+            disabled: true,
+            size: 28,
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -468,7 +482,8 @@ class _GoalInputRow extends StatelessWidget {
               ),
               child: TextField(
                 controller: controller,
-                style: const TextStyle(fontSize: _kFont16, height: _kLH160),
+                style:
+                    const TextStyle(fontSize: _kFont16, height: _kLH160),
                 textInputAction: TextInputAction.done,
                 decoration: const InputDecoration(
                   hintText: '목표 입력',
@@ -520,7 +535,8 @@ class _Alert extends StatelessWidget {
       title: Text(title),
       content: Text(message),
       actions: [
-        FilledButton(onPressed: () => Navigator.pop(context), child: Text(okText))
+        FilledButton(
+            onPressed: () => Navigator.pop(context), child: Text(okText))
       ],
     );
   }

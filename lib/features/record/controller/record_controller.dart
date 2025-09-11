@@ -287,6 +287,29 @@ class RecordController extends StateNotifier<RecordState> {
     }
   }
 
+  void _primeFinalizeState(Map<String, dynamic> existing) {
+  final durSec = _asInt(existing['duration']) ?? 0;
+  final recId  = existing['record_id']?.toString();
+  final goals  = <GoalItem>[];
+  for (final g in _asList(existing['goals'])) {
+    final gm = _asMap(g);
+    final text = gm['text']?.toString();
+    if (text != null) goals.add(GoalItem(text, _asBool(gm['done'])));
+  }
+  final moods = _asList(existing['mood_id']).map((e) => e.toString()).toList();
+
+  state = state.copyWith(
+    elapsed: Duration(seconds: durSec),
+    goals: goals,
+    selectedMoods: moods,
+    activeRecordId: recId,
+    // ✅ “활성 세션”은 run/pause에만 true. completed는 false로 둔다.
+    hasActiveSession: false,
+    isRunning: false,
+    isPaused: false,
+  );
+}
+
   // ✅ 토큰 보장: provider → Supabase 세션 → SharedPreferences 순으로 복구
   Future<bool> _ensureToken() async {
     var tok = ref.read(authTokenProvider) ?? '';
@@ -400,215 +423,157 @@ class RecordController extends StateNotifier<RecordState> {
     try { await _svc.finishSession(); } catch (_) {}
   }
 
-  // ---------- finish 이후 세션 확인: finished면 OK로 간주(비어있지 않아도 진행) ----------
-   Future<void> _waitClearAfterFinish({int attempts = 12, int baseDelayMs = 200}) async {
-    for (int i = 0; i < attempts; i++) {
-      try {
-        final found = await _svc.fetchUserSession();
-        final existing = _rootDataOrSelf(_asMap(found)); // 404/null → {}
-        if (existing.isEmpty) {
-          print('✅ finish 후 세션 비어짐 (try=${i + 1})');
-          return; // 세션이 완전히 비워졌을 때만 성공으로 간주하고 종료
-        }
-        
-        // 'completed' 상태를 더 이상 성공으로 간주하지 않음
-        final st = _mapStatus(existing['status']);
-        print('⏳ finish 후 아직 세션 데이터 남아있음 (status=$st) (try=${i + 1})');
+  
+static const _kUnexportedErr = 'unexported_session_exists';
 
-      } catch (e) {
-        // 404 Not Found 같은 예외가 발생하면 세션이 없는 것으로 간주하고 성공 처리할 수도 있습니다.
-        // 예: if (e.toString().contains('404')) { print('✅ 404 응답, 정리된 것으로 간주'); return; }
-        print('🟠 finish 후 확인 실패 (try=${i + 1}): $e');
-      }
-      await Future.delayed(Duration(milliseconds: baseDelayMs * (i + 1)));
-    }
-    print('⌛ finish 후 확인 타임아웃 — 그래도 진행');
-  }
-  Future<bool> _pollAndRecoverExisting(StartArgs args,
-      {int attempts = 15, int baseDelayMs = 200}) async {
-    for (int i = 0; i < attempts; i++) {
-      try {
-        final found = await _svc.fetchUserSession();
-        final existing = _rootDataOrSelf(_asMap(found));
-        if (existing.isNotEmpty) {
-          final status = _mapStatus(existing['status']);
-          if (status == _SessionStatus.running || status == _SessionStatus.paused) {
-            print('🟢 폴링복구 성공 (try=${i + 1})');
-            _applyRecoveredSession(existing, args: args);
-            return true;
-          } else if (status == _SessionStatus.completed) {
-            print('ℹ️ 폴링 중 completed 감지');
-          }
-        } else {
-          print('🟡 폴링 (try=${i + 1}) 아직 비어있음');
-        }
-      } catch (e) {
-        print('🟠 폴링 실패 (try=${i + 1}): $e');
-      }
-      await Future.delayed(Duration(milliseconds: baseDelayMs * (i + 1)));
-    }
-    return false;
-  }
 Future<void> startWithArgs(StartArgs args, {BuildContext? context}) async {
-    if (_starting) return;
-    _starting = true;
+  if (_starting) return;
+  _starting = true;
+  try {
+    if (!await _ensureToken()) {
+      if (context != null) _showError(context, '로그인이 만료되었습니다. 다시 로그인해 주세요.');
+      return;
+    }
+
+    // ---------- 1) 선조회 ----------
+    Map<String, dynamic> existing = {};
     try {
-      if (!await _ensureToken()) {
-        if (context != null) _showError(context, '로그인이 만료되었습니다. 다시 로그인해 주세요.');
+      final found = await _svc.fetchUserSession();
+      existing = _rootDataOrSelf(_asMap(found));
+    } catch (e) {
+      // 조회 실패는 새 시작 시도 쪽으로 넘김
+      print('⚠️ 사전 조회 실패(무시): $e');
+    }
+
+    if (existing.isNotEmpty) {
+      final status = _mapStatus(existing['status']);
+      if (status == _SessionStatus.running || status == _SessionStatus.paused) {
+        print('↩️ 기존 활성 세션 복구');
+        _applyRecoveredSession(existing, args: args);
+        return;
+      }
+      if (status == _SessionStatus.completed) {
+        print('ℹ️ 완료 세션 발견 → 기록하기로 보냄');
+        _primeFinalizeState(existing);
+        throw Exception(_kUnexportedErr);
+      }
+    }
+
+    // ---------- 2) 새 세션 시작 ----------
+    DateTime startedAt = DateTime.now().toUtc();
+    List<GoalItem> goals = args.goals.map((e) => GoalItem(e, false)).toList();
+
+    Future<void> _startNew() async {
+      final respRaw = await _svc.startSession(
+        moodId: args.moodId,
+        goals: args.goals,
+      );
+      final resp = _rootDataOrSelf(_asMap(respRaw));
+
+      startedAt = _asDateTime(resp['start_time']) ?? startedAt;
+      final session = _asMap(resp['session']);
+      final srcGoals = session.isNotEmpty ? session['goals'] : resp['goals'];
+      final serverGoals = <GoalItem>[];
+      for (final g in _asList(srcGoals)) {
+        final gm = _asMap(g);
+        final text = gm['text']?.toString();
+        if (text != null) serverGoals.add(GoalItem(text, _asBool(gm['done'])));
+      }
+      if (serverGoals.isNotEmpty) goals = serverGoals;
+
+      final recId = (session['record_id'] ?? resp['record_id'])?.toString();
+      if (recId != null && recId.isNotEmpty) {
+        state = state.copyWith(activeRecordId: recId);
+      }
+    }
+
+    try {
+      await _startNew();
+    } catch (e) {
+      final msg = e.toString().toLowerCase();
+      final already =
+          (msg.contains('이미') && msg.contains('세션')) ||
+          (msg.contains('already') && msg.contains('exist'));
+
+      if (!already) {
+        print('🚨 세션 시작 실패: $e');
+        if (context != null) _showError(context, '세션 시작 실패');
         return;
       }
 
-      final tok = ref.read(authTokenProvider) ?? '';
-      final preview = tok.length > 12 ? tok.substring(0, 12) : tok;
-      print('🔑 startWithArgs token: $preview•••');
-
-      // 1) 먼저 조회해서 있으면 바로 복구 / completed면 에러 발생
+      // ---------- 3) “이미 있음”이면 재조회 한 번으로 분기 ----------
       try {
         final found = await _svc.fetchUserSession();
-        final existing = _rootDataOrSelf(_asMap(found));
-        if (existing.isNotEmpty) {
-          final status = _mapStatus(existing['status']);
-          if (status == _SessionStatus.completed) {
-          // 1. 이전 세션 데이터를 파싱해서 상태에 먼저 적용합니다.
-          final durSec = _asInt(existing['duration']) ?? 0;
-          final goals = <GoalItem>[];
-          for (final g in _asList(existing['goals'])) {
-            final gm = _asMap(g);
-            final text = gm['text']?.toString();
-            if (text != null) goals.add(GoalItem(text, _asBool(gm['done'])));
-          }
-          final moods = _asList(existing['mood_id']).map((e) => e.toString()).toList();
-          final recId = existing['record_id']?.toString();
-
-          state = state.copyWith(
-            elapsed: Duration(seconds: durSec),
-            goals: goals,
-            selectedMoods: moods,
-            activeRecordId: recId,
-            hasActiveSession: true, // 기록 완료를 위해 활성 세션으로 간주
-          );
-          print('ℹ️ 미정리 세션 데이터 로드 완료. 시간: ${state.elapsed}');
-
-          // 2. 그 다음에 에러를 던져서 화면을 이동시킵니다.
-          throw Exception('unexported_session_exists');
-        } else if (status == _SessionStatus.running || status == _SessionStatus.paused) {
-            print('↩️ 기존 활성 세션 즉시 복구');
-            _applyRecoveredSession(existing, args: args);
-            return; // 복구 성공 시 함수 종료
-          }
-        }
-      } catch (e) {
-        // UI에서 처리해야 하는 'unexported_session_exists' 예외는 다시 던져줍니다.
-        if (e.toString().contains('unexported_session_exists')) {
-          rethrow;
-        }
-        // 그 외의 일반적인 조회 실패(e.g. 네트워크 오류)는 무시하고 새 세션 만들기로 진행합니다.
-        print('⚠️ 사전 조회 실패(무시): $e');
-      }
-
-      // ==========================================================
-      // ▼ 아래부터는 기존의 '새 세션 시작' 로직입니다.
-      // ==========================================================
-      DateTime startedAt = DateTime.now().toUtc();
-      List<GoalItem> goals = args.goals.map((e) => GoalItem(e, false)).toList();
-      bool isPaused = false;
-
-      // 2) 새 세션 시작 시도
-      Future<void> _startNew() async {
-        final respRaw = await _svc.startSession(
-          moodId: args.moodId,
-          goals: args.goals,
-        );
-        final resp = _rootDataOrSelf(_asMap(respRaw));
-
-        startedAt = _asDateTime(resp['start_time']) ?? startedAt;
-
-        final session = _asMap(resp['session']);
-        final srcGoals = session.isNotEmpty ? session['goals'] : resp['goals'];
-        final serverGoals = <GoalItem>[];
-        for (final g in _asList(srcGoals)) {
-          final gm = _asMap(g);
-          final text = gm['text']?.toString();
-          if (text != null) serverGoals.add(GoalItem(text, _asBool(gm['done'])));
-        }
-        if (serverGoals.isNotEmpty) goals = serverGoals;
-
-        final recId = (session['record_id'] ?? resp['record_id'])?.toString();
-        if (recId != null && recId.isNotEmpty) {
-          state = state.copyWith(activeRecordId: recId);
-        }
-      }
-
-      try {
-        await _startNew();
-      } catch (e) {
-        final msg = e.toString().toLowerCase();
-        final isAlreadyExists =
-            (msg.contains('이미') && msg.contains('세션')) ||
-            (msg.contains('already') && msg.contains('exist'));
-
-        if (isAlreadyExists) {
-          print('⚓ 이미 세션 존재 응답 → 폴링 복구 시도');
-          final ok = await _pollAndRecoverExisting(args, attempts: 15, baseDelayMs: 200);
-          if (!ok) {
-            print('🧹 폴링 실패 → export(가능시) → finish → 짧은 대기 → 재시작');
-            try {
-              final found = await _svc.fetchUserSession();
-              final existing = _rootDataOrSelf(_asMap(found));
-              await _exportAndFinishIfNeeded(args, existing);
-            } catch (_) {}
-            try { await _svc.finishSession(); } catch (_) {}
-            await _waitClearAfterFinish();
-
-            try {
-              await _startNew();
-            } catch (e2) {
-              print('🚨 재시작도 폭망: $e2');
-              if (context != null) _showError(context, '세션 시작 실패');
-              return;
-            }
-          } else {
+        final again = _rootDataOrSelf(_asMap(found));
+        if (again.isNotEmpty) {
+          final st = _mapStatus(again['status']);
+          if (st == _SessionStatus.running || st == _SessionStatus.paused) {
+            print('재조회로 활성 세션 복구');
+            _applyRecoveredSession(again, args: args);
             return;
           }
-        } else {
-          print('🚨 공부 시작 API 에러: $e');
-          if (context != null) _showError(context, '세션 시작 실패');
-          return;
+          if (st == _SessionStatus.completed) {
+            print('재조회 완료 세션 → 기록하기로 보냄');
+            _primeFinalizeState(again);
+            throw Exception(_kUnexportedErr);
+          }
         }
+        // 여기까지 왔는데도 없으면 에러 처리
+        print(' “이미 있음”인데 재조회 결과 없음/알 수 없음');
+        if (context != null) _showError(context, '세션 이어하기');
+        return;
+      } catch (e2) {
+        print(' “이미 있음” 재조회 실패: $e2');
+        if (context != null) _showError(context, '세션 시작 실패');
+        return;
       }
+    }
 
-      // 3) 상태 갱신 (새 시작 성공 루트)
-      final initMoods = args.moodId.isEmpty ? <String>[] : <String>[args.moodId];
-      state = state.copyWith(
-        startedAtUtc: startedAt,
-        isRunning: !isPaused,
-        hasActiveSession: true,
-        isPaused: isPaused,
-        selectedMoods: initMoods.isNotEmpty ? initMoods : state.selectedMoods,
-        goals: goals,
-        title: args.title,
-        spaceId: args.spaceId,
-        emotionTagIds: args.emotionTagIds,
-        wifiScore: args.wifiScore,
-        noiseLevel: args.noiseLevel,
-        crowdness: args.crowdness,
-        power: args.power,
-      );
+    // ---------- 4) 새 세션 시작 성공 상태 반영 ----------
+    final initMoods = args.moodId.isEmpty ? <String>[] : <String>[args.moodId];
+    state = state.copyWith(
+      startedAtUtc: startedAt,
+      isRunning: true,
+      isPaused: false,
+      hasActiveSession: true, // run/pause일 때만 true
+      selectedMoods: initMoods.isNotEmpty ? initMoods : state.selectedMoods,
+      goals: goals,
+      title: args.title,
+      spaceId: args.spaceId,
+      emotionTagIds: args.emotionTagIds,
+      wifiScore: args.wifiScore,
+      noiseLevel: args.noiseLevel,
+      crowdness: args.crowdness,
+      power: args.power,
+    );
 
-      if (state.selectedMoods.isNotEmpty) _fetchWallpaper(state.selectedMoods.last);
-      if (!isPaused) _startTicker();
+    if (state.selectedMoods.isNotEmpty) _fetchWallpaper(state.selectedMoods.last);
+    _startTicker();
 
-    } catch(e) {
-      // rethrow된 예외를 여기서 최종적으로 잡아서 UI로 전달합니다.
-      _starting = false; 
-      rethrow;
-    } finally {
-      // 정상적으로 함수가 끝나거나, return으로 중간에 빠져나갈 때
-      // _starting 플래그를 false로 설정합니다.
-      if (_starting) _starting = false;
+  } catch (e) {
+    _starting = false;
+    rethrow; // UI에서 unexported_session_exists 처리
+  } finally {
+    if (_starting) _starting = false;
+  }
+}
+ Future<bool> quit({BuildContext? context}) async {
+    if (!await _ensureToken()) {
+      if (context != null) _showError(context, '로그인이 만료되었습니다. 다시 로그인해 주세요.');
+      return false;
+    }
+    try {
+      await _svc.quitSession(); // RecordService.quitSession()
+      // 로컬 상태 정리
+      _ticker?.cancel();
+      _pausedAtUtc = null;
+      state = const RecordState();
+      return true;
+    } catch (e) {
+      if (context != null) _showError(context, '세션 종료에 실패했습니다.');
+      return false;
     }
   }
-
   // =====================
   // 일시정지 / 재개
   // =====================

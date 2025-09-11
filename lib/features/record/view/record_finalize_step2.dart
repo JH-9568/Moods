@@ -1,15 +1,17 @@
-import 'dart:io'; // 👈 [추가] File 클래스 사용을 위해 import
+// lib/features/record/view/record_finalize_step2.dart
+import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart'; // 👈 [추가] image_picker 패키지 import
+import 'package:image_picker/image_picker.dart';
 
 import 'package:moods/features/record/controller/record_controller.dart';
 import 'package:moods/features/record/view/record_card_preview.dart';
+import 'package:moods/features/record/view/map_view.dart';
 
 /// =======================
-/// Step2 전용 토큰 (Step1과 동일값)
+/// Step2 전용 토큰 (Step1과 톤 맞춤)
 /// =======================
 class C {
   static const bg = Color(0xFFF3F5FF);
@@ -45,36 +47,33 @@ class FinalizeStep2Screen extends ConsumerStatefulWidget {
 
 class _FinalizeStep2ScreenState extends ConsumerState<FinalizeStep2Screen> {
   final _titleCtrl = TextEditingController();
-  final _spaceCtrl = TextEditingController();
+  final _spaceCtrl = TextEditingController(); // 사용자에게 보일 장소명
+
+  /// 지도에서 고른 Google Place ID (서버로 보낼 값)
+  String? _selectedSpaceId;
 
   final Set<String> _selectedEmotions = {};
   final Set<String> _selectedPlaceTags = {};
   bool _submitting = false;
 
-  // 👈 [추가] image_picker 관련 상태 변수
-  XFile? _image; // 선택된 이미지를 저장할 변수
-  final ImagePicker picker = ImagePicker(); // ImagePicker 인스턴스 생성
+  // image_picker 상태
+  XFile? _image;
+  final ImagePicker picker = ImagePicker();
 
-  // 👈 [추가] 이미지를 가져오는 함수
   Future<void> _pickImage(ImageSource source) async {
     try {
       final XFile? pickedFile = await picker.pickImage(source: source);
       if (pickedFile != null) {
-        setState(() {
-          _image = pickedFile;
-        });
+        setState(() => _image = pickedFile);
       }
     } catch (e) {
-      // 권한 거부 등의 예외 처리
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('이미지를 가져오는데 실패했습니다: $e')),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('이미지를 가져오는데 실패했습니다: $e')),
+      );
     }
   }
 
-  // 👈 [추가] 선택된 이미지를 보여주는 위젯을 만드는 함수
   Widget _buildImagePreview() {
     return SizedBox(
       height: 160,
@@ -93,22 +92,14 @@ class _FinalizeStep2ScreenState extends ConsumerState<FinalizeStep2Screen> {
             top: 8,
             right: 8,
             child: InkWell(
-              onTap: () {
-                setState(() {
-                  _image = null; // 이미지 선택 취소
-                });
-              },
+              onTap: () => setState(() => _image = null),
               child: Container(
                 padding: const EdgeInsets.all(4),
                 decoration: const BoxDecoration(
                   color: Colors.black54,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
-                  Icons.close,
-                  color: Colors.white,
-                  size: 20,
-                ),
+                child: const Icon(Icons.close, color: Colors.white, size: 20),
               ),
             ),
           ),
@@ -116,7 +107,6 @@ class _FinalizeStep2ScreenState extends ConsumerState<FinalizeStep2Screen> {
       ),
     );
   }
-
 
   @override
   void dispose() {
@@ -127,7 +117,8 @@ class _FinalizeStep2ScreenState extends ConsumerState<FinalizeStep2Screen> {
 
   @override
   Widget build(BuildContext context) {
-    final st = ref.watch(recordControllerProvider);
+    final st   = ref.watch(recordControllerProvider);
+    final ctrl = ref.read(recordControllerProvider.notifier);
 
     return Scaffold(
       backgroundColor: C.bg,
@@ -141,7 +132,17 @@ class _FinalizeStep2ScreenState extends ConsumerState<FinalizeStep2Screen> {
         ),
         leading: IconButton(
           icon: const Icon(Icons.close),
-          onPressed: _submitting ? null : () => Navigator.pop(context),
+          onPressed: _submitting
+              ? null
+              : () async {
+                  final quit = await _showQuitConfirmDialog(context);
+                  if (quit == true) {
+                    final ok = await ctrl.quit(context: context);
+                    if (ok && mounted) {
+                      context.go('/home');
+                    }
+                  }
+                },
         ),
       ),
       body: SafeArea(
@@ -184,17 +185,14 @@ class _FinalizeStep2ScreenState extends ConsumerState<FinalizeStep2Screen> {
                   selected: on,
                   onSelected: (_) {
                     setState(() {
-                      on
-                          ? _selectedEmotions.remove(e)
-                          : _selectedEmotions.add(e);
+                      on ? _selectedEmotions.remove(e) : _selectedEmotions.add(e);
                     });
                   },
                   showCheckmark: false,
                   backgroundColor: Colors.white,
                   selectedColor: C.primarySoft,
                   side: const BorderSide(color: C.chipStroke),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   shape: const StadiumBorder(),
                 );
               }).toList(),
@@ -202,8 +200,7 @@ class _FinalizeStep2ScreenState extends ConsumerState<FinalizeStep2Screen> {
 
             const SizedBox(height: 16),
 
-            // 👇 [변경] 이미지 피커 로직 변경
-            // 이미지가 선택되었으면 미리보기를, 아니면 선택 버튼들을 보여줌
+            // 이미지 피커
             _image == null
                 ? _GhostImagePicker(
                     onCameraTap: () => _pickImage(ImageSource.camera),
@@ -221,15 +218,23 @@ class _FinalizeStep2ScreenState extends ConsumerState<FinalizeStep2Screen> {
                     elevation: 0,
                     backgroundColor: Colors.white,
                     foregroundColor: C.primaryDeep,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                       side: const BorderSide(color: C.chipStroke),
                     ),
                   ),
-                  onPressed: () {
-                    // TODO: 지도에서 선택
+                  onPressed: () async {
+                    final picked = await Navigator.push<SelectedPlace>(
+                      context,
+                      MaterialPageRoute(builder: (_) => const MapSelectPage()),
+                    );
+                    if (picked != null) {
+                      setState(() {
+                        _spaceCtrl.text  = picked.name;     // 화면 표시용
+                        _selectedSpaceId = picked.placeId;  // 서버 전송용
+                      });
+                    }
                   },
                   child: const Text('지도에서 선택',
                       style: TextStyle(fontWeight: FontWeight.w700)),
@@ -237,7 +242,13 @@ class _FinalizeStep2ScreenState extends ConsumerState<FinalizeStep2Screen> {
               ],
             ),
             const SizedBox(height: 10),
-            _InputBox.text(controller: _spaceCtrl, hint: '직접 입력'),
+
+            // 장소 입력칸(읽기전용: 지도로만 선택)
+            _InputBox.text(
+              controller: _spaceCtrl,
+              hint: '지도로 선택하세요',
+              readOnly: true,
+            ),
 
             const SizedBox(height: 20),
             const _FieldLabel('공간 특징'),
@@ -265,17 +276,14 @@ class _FinalizeStep2ScreenState extends ConsumerState<FinalizeStep2Screen> {
                   selected: on,
                   onSelected: (_) {
                     setState(() {
-                      on
-                          ? _selectedPlaceTags.remove(t)
-                          : _selectedPlaceTags.add(t);
+                      on ? _selectedPlaceTags.remove(t) : _selectedPlaceTags.add(t);
                     });
                   },
                   showCheckmark: false,
                   backgroundColor: Colors.white,
                   selectedColor: C.primarySoft,
                   side: const BorderSide(color: C.chipStroke),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   shape: const StadiumBorder(),
                 );
               }).toList(),
@@ -293,9 +301,8 @@ class _FinalizeStep2ScreenState extends ConsumerState<FinalizeStep2Screen> {
             height: 56,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: _submitting
-                    ? C.primaryDeep.withOpacity(.6)
-                    : C.primaryDeep,
+                backgroundColor:
+                    _submitting ? C.primaryDeep.withOpacity(.6) : C.primaryDeep,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -306,16 +313,26 @@ class _FinalizeStep2ScreenState extends ConsumerState<FinalizeStep2Screen> {
                   : () async {
                       setState(() => _submitting = true);
                       try {
-                        // 1) finalize 메타 저장
-                        ref
-                            .read(recordControllerProvider.notifier)
-                            .applyFinalizeMeta(
-                              title: _titleCtrl.text.trim().isEmpty
-                                  ? '공부 기록'
-                                  : _titleCtrl.text.trim(),
-                              emotionTagIds: _selectedEmotions.toList(),
-                              spaceId: _spaceCtrl.text.trim(),
-                            );
+                        // 공간 선택 안했으면 막기
+                        if (_selectedSpaceId == null ||
+                            _selectedSpaceId!.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('지도를 열어 공간을 선택해 주세요.')),
+                          );
+                          return;
+                        }
+
+                        // 1) finalize 메타 저장 (spaceId에 place_id 넣음)
+                        ref.read(recordControllerProvider.notifier).applyFinalizeMeta(
+                          title: _titleCtrl.text.trim().isEmpty
+                              ? '공부 기록'
+                              : _titleCtrl.text.trim(),
+                          emotionTagIds: _selectedEmotions.toList(),
+                          spaceId: _selectedSpaceId!, // ⭐ 서버로 가는 값
+                        );
+
+                        debugPrint('[Finalize] _selectedSpaceId=$_selectedSpaceId  uiName=${_spaceCtrl.text}');
+
 
                         // 2) 서버 export
                         final resp = await ref
@@ -338,53 +355,49 @@ class _FinalizeStep2ScreenState extends ConsumerState<FinalizeStep2Screen> {
                             : double.tryParse('${data['duration']}') ?? 0.0;
 
                         DateTime? _iso(v) {
-                          try {
-                            return DateTime.parse('$v').toLocal();
-                          } catch (_) {
-                            return null;
-                          }
+                          try { return DateTime.parse('$v').toLocal(); }
+                          catch (_) { return null; }
                         }
 
-                        final endedAt = _iso(data['end_time']) ?? DateTime.now();
+                        final endedAt =
+                            _iso(data['end_time']) ?? DateTime.now();
                         final startedAt = _iso(data['start_time']) ??
-                            endedAt.subtract(Duration(
-                                milliseconds: (durSec * 1000).round()));
+                            endedAt.subtract(
+                              Duration(milliseconds: (durSec * 1000).round()),
+                            );
 
-                        final goalsDone = (data['goals'] is List
-                                ? data['goals'] as List
-                                : const [])
-                            .whereType<Map>()
-                            .where((g) => g['done'] == true)
-                            .map((g) => (g['text'] ?? '').toString())
-                            .where((s) => s.isNotEmpty)
-                            .toList();
+                        final goalsDone =
+                            (data['goals'] is List ? data['goals'] as List : const [])
+                                .whereType<Map>()
+                                .where((g) => g['done'] == true)
+                                .map((g) => (g['text'] ?? '').toString())
+                                .where((s) => s.isNotEmpty)
+                                .toList();
 
                         List<String> _toStrList(v) {
-                          if (v is List)
-                            return v.map((e) => e.toString()).toList();
+                          if (v is List) return v.map((e) => e.toString()).toList();
                           if (v is String && v.isNotEmpty) return [v];
                           return const <String>[];
                         }
 
-                        final moods = _toStrList(data['mood_id']);
-                        final emotionTags =
-                            _toStrList(data['emotion_tag_ids']);
-                        final spaceId = (data['space_id']?.toString() ?? '');
+                        final moods       = _toStrList(data['mood_id']);
+                        final emotionTags = _toStrList(data['emotion_tag_ids']);
 
                         final focus = Duration(
-                            milliseconds: max(0, (durSec * 1000).round()));
+                          milliseconds: max(0, (durSec * 1000).round()),
+                        );
 
                         if (!mounted) return;
 
                         final st2 = ref.read(recordControllerProvider);
-                        final bgProvider = (st2.wallpaperUrl.trim().isNotEmpty)
-                            ? NetworkImage(st2.wallpaperUrl)
-                            : null;
 
-                        // TODO: 선택된 이미지가 있다면 FileImage로 bgProvider를 설정하는 로직 추가
-                        // final ImageProvider? finalBgProvider = _image != null
-                        //     ? FileImage(File(_image!.path))
-                        //     : bgProvider;
+                        // 배경: 선택 이미지 > 세션 배경
+                        final ImageProvider? bgProvider =
+                            _image != null
+                                ? FileImage(File(_image!.path))
+                                : (st2.wallpaperUrl.trim().isNotEmpty
+                                    ? NetworkImage(st2.wallpaperUrl)
+                                    : null);
 
                         final dataForPreview = RecordCardData(
                           date: endedAt,
@@ -399,18 +412,18 @@ class _FinalizeStep2ScreenState extends ConsumerState<FinalizeStep2Screen> {
                                   : '공부 기록',
                           goalsDone: goalsDone,
                           moods: moods.isNotEmpty ? moods : st2.selectedMoods,
-                          placeName: spaceId.isNotEmpty ? spaceId : '미정',
+                          placeName: _spaceCtrl.text.trim().isNotEmpty
+                              ? _spaceCtrl.text.trim()
+                              : '미정', // 카드에는 보기 좋은 이름 노출
                           placeType: '공간',
                           placeMood: emotionTags.isNotEmpty
                               ? emotionTags.join(', ')
                               : '무드 미정',
                           tags: _selectedPlaceTags.toList(),
-                          background: bgProvider, // finalBgProvider 로 교체 가능
+                          background: bgProvider,
                         );
 
-                        if (mounted) {
-                          context.go('/record/preview', extra: dataForPreview);
-                        }
+                        await showRecordCardPreview(context, dataForPreview);
                       } catch (e) {
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -433,13 +446,60 @@ class _FinalizeStep2ScreenState extends ConsumerState<FinalizeStep2Screen> {
   }
 }
 
+/// 확인 다이얼로그
+Future<bool?> _showQuitConfirmDialog(BuildContext context) {
+  return showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      contentPadding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
+      titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+      title: const Text(
+        '지금 나가면\n기록이 저장되지 않아요',
+        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: C.textMain),
+      ),
+      content: const Text(
+        '이어서 기록을 저장하시겠어요?',
+        style: TextStyle(fontSize: 14, color: C.textSub),
+      ),
+      actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      actions: [
+        Expanded(
+          child: FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: C.primaryDeep,
+              minimumSize: const Size.fromHeight(44),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('네\n기록을 저장할래요', textAlign: TextAlign.center),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(44),
+              side: const BorderSide(color: C.chipStroke),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              foregroundColor: C.textMain,
+              backgroundColor: C.surface,
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('아니요\n나갈래요', textAlign: TextAlign.center),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
 /// =======================
-/// 로컬 파츠 (라벨/인풋/고스트피커)
+/// 로컬 파츠
 /// =======================
 class _FieldLabel extends StatelessWidget {
   final String text;
   const _FieldLabel(this.text);
-
   @override
   Widget build(BuildContext context) {
     return Text(
@@ -456,10 +516,12 @@ class _FieldLabel extends StatelessWidget {
 class _InputBox extends StatelessWidget {
   final TextEditingController controller;
   final String hint;
+  final bool readOnly;
 
   const _InputBox.text({
     required this.controller,
     required this.hint,
+    this.readOnly = false,
   });
 
   @override
@@ -475,6 +537,7 @@ class _InputBox extends StatelessWidget {
       alignment: Alignment.centerLeft,
       child: TextField(
         controller: controller,
+        readOnly: readOnly,
         decoration: const InputDecoration(
           border: InputBorder.none,
           isCollapsed: true,
@@ -510,9 +573,7 @@ class _GhostImagePicker extends StatelessWidget {
               const Text(
                 '공간을 함께 저장해보세요',
                 style: TextStyle(
-                    color: C.textMain,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16),
+                    color: C.textMain, fontWeight: FontWeight.w600, fontSize: 16),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 14),
@@ -544,8 +605,7 @@ class _GhostIconBtn extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback? onTap;
-  const _GhostIconBtn(
-      {required this.icon, required this.label, this.onTap});
+  const _GhostIconBtn({required this.icon, required this.label, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -560,12 +620,16 @@ class _GhostIconBtn extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: C.chipStroke)
+              border: Border.all(color: C.chipStroke),
             ),
             child: Icon(icon, size: 28, color: C.primaryDeep),
           ),
           const SizedBox(height: 6),
-          Text(label, style: const TextStyle(fontSize: 13, color: C.textSub, fontWeight: FontWeight.w500),)
+          Text(
+            label,
+            style: const TextStyle(
+                fontSize: 13, color: C.textSub, fontWeight: FontWeight.w500),
+          ),
         ],
       ),
     );

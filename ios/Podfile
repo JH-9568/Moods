@@ -1,5 +1,5 @@
 # ios/Podfile (기본형)
-platform :ios, '13.0'
+platform :ios, '14.0'
 
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 

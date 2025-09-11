@@ -235,9 +235,11 @@ class AuthService {
         session = {
           'access_token': token,
         };
-        if (parsed['refresh_token'] is String) {
-          session['refresh_token'] = parsed['refresh_token'];
-        }
+      }
+      if (parsed['refresh_token'] is String) {
+        session['refresh_token'] = parsed['refresh_token'];
+      } else if (parsed['refreshToken'] is String) {
+        session['refresh_token'] = parsed['refreshToken'];
       }
     }
 
@@ -246,7 +248,7 @@ class AuthService {
       throw Exception('로그인 응답에 access_token이 없습니다.');
     }
 
-    // (레거시) SharedPreferences에도 저장해두는 중
+    // (레거시) SharedPreferences에도 저장
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('access_token', acc);
 
@@ -340,10 +342,87 @@ class AuthService {
         redirectUri.queryParameters['error_code'] == null;
   }
 
-  // ─────────────── “자동 재로그인” (리프레시 없음) ───────────────
-  /// 저장된 자격(email/password 등)으로 재로그인 시도.
-  /// 성공 시 새 access 토큰이 TokenStorage에 저장됨 → true 반환
-  /// 저장 데이터 없거나 실패 시 false
+  // ─────────────── 새 규격: /auth/token 으로 access 재발급 ───────────────
+  /// 저장된 refresh_token으로 새 access_token을 받아 저장.
+  /// 성공 시 true, 실패 시 false.
+  Future<bool> refreshAccessToken() async {
+    final refresh = await storage.readRefreshToken();
+    if (refresh == null || refresh.isEmpty) return false;
+
+    // ① 헤더 Bearer 방식
+    try {
+      final res = await httpClient
+          .post(
+            _u('/auth/token'),
+            headers: {'Authorization': 'Bearer $refresh'},
+          )
+          .timeout(_defaultTimeout);
+
+      if (res.statusCode ~/ 100 == 2) {
+        return await _handleRefreshResponse(res);
+      }
+    } catch (_) {
+      // 바디 방식으로 폴백
+    }
+
+    // ② 바디(JSON) 방식
+    try {
+      final res = await httpClient
+          .post(
+            _u('/auth/token'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'refresh_token': refresh}),
+          )
+          .timeout(_defaultTimeout);
+
+      if (res.statusCode ~/ 100 == 2) {
+        return await _handleRefreshResponse(res);
+      }
+    } catch (_) {}
+
+    return false;
+  }
+
+  Future<bool> _handleRefreshResponse(http.Response res) async {
+    // 1) 헤더 우선
+    String? access =
+        res.headers['authorization'] ?? res.headers['Authorization'];
+    if (access != null && access.toLowerCase().startsWith('bearer ')) {
+      access = access.substring(7);
+    }
+
+    // 2) 바디 보조
+    if ((access == null || access.isEmpty) && res.body.isNotEmpty) {
+      try {
+        final body = jsonDecode(res.body);
+        if (body is Map) {
+          access = (body['access_token'] ??
+                    body['accessToken'] ??
+                    body['token'] ??
+                    body['jwt'])
+              ?.toString();
+
+          final newRefresh = body['refresh_token'] ?? body['refreshToken'];
+          if (newRefresh is String && newRefresh.isNotEmpty) {
+            await storage.saveRefreshToken(newRefresh);
+          }
+        }
+      } catch (_) {}
+    }
+
+    if (access == null || access.isEmpty) return false;
+
+    // 저장 (레거시 prefs 포함)
+    await storage.saveAccessToken(access);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('access_token', access);
+    } catch (_) {}
+
+    return true;
+  }
+
+  // ─────────────── “자동 재로그인” (백업 루트) ───────────────
   Future<bool> reloginWithSavedCredentials() async {
     final payload = await storage.readLoginPayload();
     final email = payload is Map ? payload['email'] as String? : null;
@@ -361,6 +440,6 @@ class AuthService {
     }
   }
 
-  /// ⬅️ `AuthHttpClient`에서 호출할 별칭(이름만 다른 동일 동작)
+  /// (이전 이름을 쓰던 코드 호환용) — 여전히 재로그인만 수행
   Future<bool> reissueAccessOnly() => reloginWithSavedCredentials();
 }

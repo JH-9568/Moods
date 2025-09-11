@@ -3,6 +3,9 @@
   <!-- 1) 인터넷 퍼미션 -->
   <uses-permission android:name="android.permission.INTERNET"/>
 
+  <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+  <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
   <application
       android:label="moods"
       android:name="${applicationName}"
@@ -30,6 +33,9 @@
         <category android:name="android.intent.category.LAUNCHER"/>
       </intent-filter>
     </activity>
+
+    <meta-data android:name="com.google.android.geo.API_KEY"
+              android:value="AIzaSyBElYG8gflJPX4Gspaqo0yGNd76c0dNcHk"/>
 
     <meta-data
         android:name="flutterEmbedding"
