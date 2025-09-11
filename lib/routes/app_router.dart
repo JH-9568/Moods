@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:moods/features/my_page/my_page_widget.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -21,9 +22,11 @@ import 'package:moods/features/record/view/record_timer_screen.dart';
 import 'package:moods/features/record/view/record_card_preview.dart';
 import 'package:moods/features/record/controller/record_controller.dart';
 import 'package:moods/features/record/view/record_finalize_step1.dart';
+
 class RouterPing extends ChangeNotifier {
   void ping() => notifyListeners();
 }
+
 final routerPing = RouterPing();
 
 class GoRouterRefresh extends ChangeNotifier {
@@ -47,7 +50,7 @@ GoRouter createAppRouter() {
   final authStream = supa.auth.onAuthStateChange;
 
   return GoRouter(
-    initialLocation: '/start',
+    initialLocation: '/home',
     refreshListenable: Listenable.merge([
       GoRouterRefresh(authStream),
       routerPing,
@@ -58,7 +61,7 @@ GoRouter createAppRouter() {
 
       // 0) 딥링크 콜백은 통과 (원하면 /home 등으로 바꿔도 됨)
       if (state.uri.scheme == 'moods') {
-        return '/start';
+        return '/profile';
       }
 
       // 1) 온보딩 화면은 항상 통과
@@ -72,7 +75,7 @@ GoRouter createAppRouter() {
       // 2-1) SharedPreferences (이메일/비번 로그인용 커스텀 토큰)
       final prefs = await SharedPreferences.getInstance();
       final spToken = prefs.getString('access_token');
-      final hasSp   = spToken != null && spToken.isNotEmpty;
+      final hasSp = spToken != null && spToken.isNotEmpty;
 
       // 2-2) Supabase 세션(카카오 OAuth 등)
       final session = supa.auth.currentSession;
@@ -106,7 +109,8 @@ GoRouter createAppRouter() {
                 .eq('id', uid)
                 .maybeSingle();
 
-            filled = row != null &&
+            filled =
+                row != null &&
                 (row['nickname'] ?? '').toString().isNotEmpty &&
                 row['birthday'] != null &&
                 row['gender'] != null &&
@@ -138,8 +142,14 @@ GoRouter createAppRouter() {
       GoRoute(path: '/register', builder: (_, __) => const RegisterScreen()),
       GoRoute(path: '/kakao', builder: (_, __) => const AdditionalInfoScreen()),
       GoRoute(path: '/terms', builder: (_, __) => const TermsAgreementScreen()),
-      GoRoute(path: '/complete', builder: (_, __) => const SignUpCompleteScreen()),
-      GoRoute(path: '/reset-password', builder: (_, __) => const PasswordResetScreen()),
+      GoRoute(
+        path: '/complete',
+        builder: (_, __) => const SignUpCompleteScreen(),
+      ),
+      GoRoute(
+        path: '/reset-password',
+        builder: (_, __) => const PasswordResetScreen(),
+      ),
       GoRoute(
         path: '/record/preview',
         builder: (_, state) {
@@ -169,6 +179,7 @@ GoRouter createAppRouter() {
           GoRoute(path: '/home', builder: (_, __) => const HomeScreen()),
           GoRoute(path: '/explore', builder: (_, __) => const ExploreScreen()),
           GoRoute(path: '/map', builder: (_, __) => const MapScreen()),
+          GoRoute(path: '/profile', builder: (_, __) => const MyPageWidget()),
         ],
       ),
     ],

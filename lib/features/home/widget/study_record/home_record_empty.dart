@@ -12,7 +12,7 @@ class StudyRecordEmptyCard extends StatelessWidget {
     return Container(
       width: 361,
       height: 143,
-      
+
       decoration: BoxDecoration(
         color: AppColors.border, // 연한 파랑 배경
         borderRadius: BorderRadius.circular(8),
@@ -22,9 +22,7 @@ class StudyRecordEmptyCard extends StatelessWidget {
           Positioned(
             right: 3,
             top: 0,
-            child: SvgPicture.asset(
-              'assets/fonts/icons/calender.svg',
-            ),
+            child: SvgPicture.asset('assets/fonts/icons/calender.svg'),
           ),
           // 중앙 텍스트
           Center(

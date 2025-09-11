@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:moods/common/constants/colors.dart';
 import 'package:moods/common/constants/text_styles.dart';
-import 'package:moods/features/home/widget/my_moods/study_count_widget.dart';
 import 'package:go_router/go_router.dart';
 import 'package:moods/features/record/controller/record_controller.dart'; // StartArgs
 
@@ -28,12 +27,9 @@ class MyMoodsSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-
           // 공부 횟수 게이지
-          
-          
-          // 제목 (원래 _buildCard의 title 파라미터에 있던 값)
 
+          // 제목 (원래 _buildCard의 title 파라미터에 있던 값)
           Text(
             '나만의 Moods',
             style: AppTextStyles.title.copyWith(color: Colors.black),
@@ -45,8 +41,8 @@ class MyMoodsSection extends StatelessWidget {
             style: AppTextStyles.bodyBold.copyWith(color: Colors.black),
           ),
           const SizedBox(height: 30),
+
           // 공부 횟수 게이지
-          
           const SizedBox(height: 12),
           // 공부 시작하기 버튼
           SizedBox(
@@ -60,9 +56,8 @@ class MyMoodsSection extends StatelessWidget {
                   goals: const [],
 
                   // ❗️여기가 포인트: mood → moodId 로 변경
-                  moodId: '조용한',            // 기본값(필요시 교체)
-                  emotionTagIds: const [],    // 예: ['보통','피곤']
-
+                  moodId: '조용한', // 기본값(필요시 교체)
+                  emotionTagIds: const [], // 예: ['보통','피곤']
                   // 공간/환경 값 필요 시 채워넣기
                   spaceId: 'ChIJ__yaTwBZezUR7KZqUO2f41s',
                   // wifiScore: 4,

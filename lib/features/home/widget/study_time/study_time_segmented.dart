@@ -2,19 +2,21 @@
 import 'package:flutter/material.dart';
 import 'package:moods/common/constants/colors.dart';
 import 'package:moods/common/constants/text_styles.dart';
-import 'package:moods/features/home/widget/study_time/study_time_controller.dart' show StudyTotalRange;
+import 'study_time_controller.dart' show StudyScope;
 
+/// 기존 디자인(흰색 thumb가 움직이는 토글)을 유지하면서,
+/// 컨트롤러의 StudyScope(month/week)에 바로 연결되도록 한 버전.
 class StudyTimeSegmented extends StatelessWidget {
-  final StudyTotalRange value;
-  final ValueChanged<StudyTotalRange> onChanged;
+  final StudyScope value;
+  final ValueChanged<StudyScope> onChanged;
   final double width;
 
   const StudyTimeSegmented({
-    Key? key,
+    super.key,
     required this.value,
     required this.onChanged,
-    this.width = 100, // 버튼 전체 폭 (이번 달/이번 주 나눠서)
-  }) : super(key: key);
+    this.width = 100, // 필요 시 외부에서 폭 조절
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -22,7 +24,7 @@ class StudyTimeSegmented extends StatelessWidget {
     const double radius = 20;
     const double outerPadding = 3;
 
-    final bool isMonth = value == StudyTotalRange.month;
+    final bool isMonth = value == StudyScope.month;
 
     return SizedBox(
       width: width,
@@ -34,7 +36,7 @@ class StudyTimeSegmented extends StatelessWidget {
 
           return Stack(
             children: [
-              // 전체 트랙 (sub 색상)
+              // 전체 트랙
               Container(
                 decoration: BoxDecoration(
                   color: AppColors.sub,
@@ -64,7 +66,7 @@ class StudyTimeSegmented extends StatelessWidget {
                   Expanded(
                     child: InkWell(
                       borderRadius: BorderRadius.circular(radius),
-                      onTap: () => onChanged(StudyTotalRange.month),
+                      onTap: () => onChanged(StudyScope.month),
                       child: Center(
                         child: Text(
                           '이번 달',
@@ -78,7 +80,7 @@ class StudyTimeSegmented extends StatelessWidget {
                   Expanded(
                     child: InkWell(
                       borderRadius: BorderRadius.circular(radius),
-                      onTap: () => onChanged(StudyTotalRange.week),
+                      onTap: () => onChanged(StudyScope.week),
                       child: Center(
                         child: Text(
                           '이번 주',
