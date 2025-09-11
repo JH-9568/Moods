@@ -8,8 +8,6 @@ import 'package:moods/common/constants/text_styles.dart';
 import 'package:moods/features/home/widget/my_ranking/my_ranking_empty.dart';
 import 'package:moods/features/home/widget/my_ranking/my_ranking_controller.dart';
 
-/// 홈에서 바로 쓸 수 있는 블록 위젯 (섹션 역할 + 본문 UI + 빈 상태 처리까지)
-/// - 컨트롤러 상태를 보고: 로딩 → 로딩UI, 에러/빈 → Empty, 데이터 → 캐러셀
 class MyRankingWidget extends ConsumerWidget {
   const MyRankingWidget({super.key});
 
@@ -18,29 +16,25 @@ class MyRankingWidget extends ConsumerWidget {
     final state = ref.watch(myRankingControllerProvider);
     final notifier = ref.read(myRankingControllerProvider.notifier);
 
-    // 최초 진입 시 자동 로드(이미 로드 중/완료면 무시)
     if (!state.loading && !state.loadedOnce && state.error == null) {
-      // 마운트 타이밍 보정
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        notifier.loadIfNeeded(); // JWT는 providers에서 자동 주입
+        notifier.loadIfNeeded();
       });
     }
 
-    // 카드 컨테이너(섹션) 공통 래핑
     Widget wrapCard(Widget child) {
       return Container(
         width: 361,
         constraints: const BoxConstraints(minHeight: 276),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.border, // Main/2
+          color: AppColors.border,
           borderRadius: BorderRadius.circular(8),
         ),
         child: child,
       );
     }
 
-    // 헤더 타이틀
     Widget header() => Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Column(
@@ -57,7 +51,6 @@ class MyRankingWidget extends ConsumerWidget {
     );
 
     if (state.loading && !state.loadedOnce) {
-      // 첫 로딩 스켈레톤
       return wrapCard(
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -66,23 +59,14 @@ class MyRankingWidget extends ConsumerWidget {
       );
     }
 
-    if (state.error != null) {
-      // 에러 → Empty UI로 단순 대체(필요하면 재시도 버튼 추가 가능)
-      return const RankingEmptyCard();
-    }
+    if (state.error != null) return const RankingEmptyCard();
+    if (state.items.isEmpty) return const RankingEmptyCard();
 
-    if (state.items.isEmpty) {
-      // 데이터 없음 → Empty UI
-      return const RankingEmptyCard();
-    }
-
-    // 데이터가 있을 때: 상위 5개만 사용
+    // 데이터 → UI 모델 변환 (seconds 기반 Duration)
     final items = state.items.take(5).map((e) {
       return RankingUiItem(
         title: e.spaceName,
-        totalMinutes: (e.myTotalMinutes is num)
-            ? (e.myTotalMinutes as num).toDouble()
-            : double.tryParse('${e.myTotalMinutes}') ?? 0.0,
+        totalSeconds: e.myTotalRaw, // ← seconds
         sessions: e.myStudyCount,
         rank: e.userRank,
         imageUrl: (e.spaceImageUrl?.toString().trim().isEmpty ?? true)
@@ -91,7 +75,6 @@ class MyRankingWidget extends ConsumerWidget {
       );
     }).toList();
 
-    // ... 위 생략
     return wrapCard(
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -100,7 +83,7 @@ class MyRankingWidget extends ConsumerWidget {
           const SizedBox(height: 2),
           ArcRankingCarousel(
             items: items,
-            itemSize: const Size(94.06, 146.97), // 👈 카드 폭/높이 고정
+            itemSize: const Size(94.06, 146.97),
             radius: 90,
           ),
         ],
@@ -109,12 +92,11 @@ class MyRankingWidget extends ConsumerWidget {
   }
 }
 
-/// 로딩 시 간단한 스켈레톤
 class _LoadingSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 200, // roughly space left under the header
+      height: 200,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: List.generate(3, (_) {
@@ -132,33 +114,27 @@ class _LoadingSkeleton extends StatelessWidget {
   }
 }
 
-/// 캐러셀로 넘길 UI용 모델(컨트롤러 모델을 단순 변환)
 class RankingUiItem {
   final String title;
-  final double totalMinutes;
+  final double totalSeconds; // seconds
   final int sessions;
-  final int rank; // API 순위 그대로 사용
+  final int rank;
   final String? imageUrl;
+
   const RankingUiItem({
     required this.title,
-    required this.totalMinutes,
+    required this.totalSeconds,
     required this.sessions,
     required this.rank,
     this.imageUrl,
   });
 
-  Duration get total => Duration(minutes: totalMinutes.round());
+  Duration get total => Duration(seconds: totalSeconds.round());
 }
 
-/// 원호/심도 캐러셀
 class ArcRankingCarousel extends StatefulWidget {
-  /// 누적시간 내림차순(=1등이 먼저) 정렬된 5개 이내 리스트라고 가정
   final List<RankingUiItem> items;
-
-  /// 카드 크기
   final Size itemSize;
-
-  /// 반경(원호의 반지름)
   final double radius;
 
   const ArcRankingCarousel({
@@ -181,9 +157,9 @@ class _ArcRankingCarouselState extends State<ArcRankingCarousel>
   );
   late Animation<double> _snapAnim = const AlwaysStoppedAnimation<double>(0);
 
-  static const int _visibleCount = 5; // 최대 5개
-  double get slotAngle => math.pi / 6; // 간격 각도
-  static const double _dragToAngle = 0.009; // 드래그 민감도
+  static const int _visibleCount = 5;
+  double get slotAngle => math.pi / 6;
+  static const double _dragToAngle = 0.009;
 
   @override
   void dispose() {
@@ -239,25 +215,23 @@ class _ArcRankingCarouselState extends State<ArcRankingCarousel>
 
           final double x = widget.radius * math.sin(a);
           final double y = 0;
-          final double z = (math.cos(a) + 1) / 2; // 0..1
+          final double z = (math.cos(a) + 1) / 2;
 
           final double scale = _lerp(0.72, 1.1, z);
           final double opacity = _lerp(0.22, 1.0, z);
           final double elevation = _lerp(0, 16, z);
-          final double tilt = 0;
-          final double lift = 0;
 
           placed.add(
             _Placed(
               index: i,
               angle: a,
               x: x,
-              y: y + lift,
+              y: y,
               z: z,
               scale: scale,
               opacity: opacity,
               elevation: elevation,
-              tilt: tilt,
+              tilt: 0,
             ),
           );
         }
@@ -288,8 +262,8 @@ class _ArcRankingCarouselState extends State<ArcRankingCarousel>
                             item: items[p.index],
                             size: widget.itemSize,
                             elevation: p.elevation,
-                            isCenter: _isCenter(p.angle),
-                            // API의 순위 그대로 보여주되, 없으면 포지션+1
+                            isCenter:
+                                (_wrapPi(p.angle)).abs() < slotAngle * 0.28,
                             rankText: (items[p.index].rank > 0)
                                 ? '${items[p.index].rank}등'
                                 : '${p.index + 1}등',
@@ -305,8 +279,6 @@ class _ArcRankingCarouselState extends State<ArcRankingCarousel>
       },
     );
   }
-
-  bool _isCenter(double a) => (_wrapPi(a)).abs() < slotAngle * 0.28;
 
   static double _normalize(double a) {
     final twoPi = math.pi * 2;
@@ -345,7 +317,6 @@ class _Placed {
   });
 }
 
-/// 실제 카드 UI
 class _RankingCard extends StatelessWidget {
   final RankingUiItem item;
   final Size size;
@@ -361,6 +332,7 @@ class _RankingCard extends StatelessWidget {
     required this.isCenter,
     required this.rankText,
   });
+
   String _formatDuration(Duration d) {
     final h = d.inHours;
     final m = d.inMinutes % 60;
@@ -372,13 +344,15 @@ class _RankingCard extends StatelessWidget {
     final bg = item.imageUrl;
 
     return Material(
-      elevation: elevation,
+      elevation: 100,
+      shadowColor: Colors.green,
+      surfaceTintColor: Colors.transparent,
       borderRadius: BorderRadius.circular(12),
       child: Container(
         width: size.width,
         height: size.height,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(8),
           color: Colors.white,
           image: bg == null
               ? null
@@ -386,44 +360,31 @@ class _RankingCard extends StatelessWidget {
         ),
         child: Stack(
           children: [
-            // 하단 가독성 보정용 그라데이션
             Positioned.fill(
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.black.withOpacity(0.10), // 상단도 약간 어둡게
-                      Colors.black.withOpacity(0.70),
-                    ],
-                  ),
                 ),
               ),
             ),
-
-            // 1) 상단 중앙: 등수
             Positioned(
-              top: 6,
+              bottom: 70,
               left: 0,
               right: 0,
               child: Center(
                 child: Text(
-                  rankText, // 예: "1등"
+                  rankText,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: Colors.black,
                     fontWeight: FontWeight.w800,
-                    fontSize: 20, // 카드 작아졌으니 살짝 줄임
+                    fontSize: 20,
                   ),
                 ),
               ),
             ),
-
-            // 2) 등수 아래 중앙: 지점명
             Positioned(
-              top: 36, // 등수 아래로 적당히
+              bottom: 40,
               left: 6,
               right: 6,
               child: Text(
@@ -438,8 +399,6 @@ class _RankingCard extends StatelessWidget {
                 ),
               ),
             ),
-
-            // 3) 하단: 시간 / 4) 하단: 횟수
             Positioned(
               left: 8,
               right: 8,
@@ -456,15 +415,15 @@ class _RankingCard extends StatelessWidget {
                         style: TextStyle(
                           color: Colors.black87,
                           fontWeight: FontWeight.w600,
-                          fontSize: 11,
+                          fontSize: 8.4,
                         ),
                       ),
                       Text(
-                        _formatDuration(item.total),
+                        _formatDuration(item.total), // seconds → Duration → 표시
                         style: TextStyle(
-                          color: AppColors.main, // 네 앱 메인컬러
+                          color: AppColors.text_color1,
                           fontWeight: FontWeight.w800,
-                          fontSize: 12,
+                          fontSize: 9.6,
                         ),
                       ),
                     ],
@@ -479,15 +438,15 @@ class _RankingCard extends StatelessWidget {
                         style: TextStyle(
                           color: Colors.black87,
                           fontWeight: FontWeight.w600,
-                          fontSize: 11,
+                          fontSize: 8.4,
                         ),
                       ),
                       Text(
                         '${item.sessions}회',
                         style: TextStyle(
-                          color: AppColors.main,
+                          color: AppColors.text_color1,
                           fontWeight: FontWeight.w800,
-                          fontSize: 12,
+                          fontSize: 9.6,
                         ),
                       ),
                     ],

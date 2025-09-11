@@ -38,58 +38,55 @@ class CustomBottomNav extends StatelessWidget {
       },
     ];
 
-    final currentIndex =
-        tabs.indexWhere((tab) => location.startsWith(tab['path']!));
+    final currentIndex = tabs.indexWhere(
+      (tab) => location.startsWith(tab['path']!),
+    );
 
-return Container(
-  height: 87,
-  padding: const EdgeInsets.symmetric(horizontal: 54, vertical: 12),
-  decoration: BoxDecoration(
-    borderRadius: const BorderRadius.only(
-      topLeft: Radius.circular(17),
-      topRight: Radius.circular(17)
-    ),
-    color: Colors.white,
-    boxShadow: [
-      BoxShadow(
-        color: Colors.black.withOpacity(0.1),
-        blurRadius: 8,
-        offset: const Offset(0, -2),
-      ),
-    ],
-  ),
-  child: Row(
-    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-    children: List.generate(tabs.length, (index) {
-      final isSelected = index == currentIndex;
-      final iconPath = isSelected
-          ? tabs[index]['selectedIcon']!
-          : tabs[index]['icon']!;
-      final textColor = isSelected ? AppColors.dark : AppColors.black;
-
-      return GestureDetector(
-        onTap: () {
-          context.go(tabs[index]['path']!);
-        },
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center, // 추가
-          children: [
-            SvgPicture.asset(
-              iconPath,
-              width: 24,
-              height: 24,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              tabs[index]['label']!,
-              style: AppTextStyles.small.copyWith(color: textColor),
-            ),
-          ],
+    return Container(
+      height: 87,
+      padding: const EdgeInsets.symmetric(horizontal: 54, vertical: 12),
+      decoration: BoxDecoration(
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(17),
+          topRight: Radius.circular(17),
         ),
-      );
-    }),
-  ),
-);
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: List.generate(tabs.length, (index) {
+          final isSelected = index == currentIndex;
+          final iconPath = isSelected
+              ? tabs[index]['selectedIcon']!
+              : tabs[index]['icon']!;
+          final textColor = isSelected ? AppColors.dark : AppColors.black;
+
+          return GestureDetector(
+            onTap: () {
+              context.go(tabs[index]['path']!);
+            },
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center, // 추가
+              children: [
+                SvgPicture.asset(iconPath, width: 24, height: 24),
+                const SizedBox(height: 4),
+                Text(
+                  tabs[index]['label']!,
+                  style: AppTextStyles.small.copyWith(color: textColor),
+                ),
+              ],
+            ),
+          );
+        }),
+      ),
+    );
   }
 }

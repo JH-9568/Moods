@@ -1,13 +1,13 @@
 // lib/features/home/widget/my_ranking/my_ranking_controller.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'my_ranking_service.dart'; // MySpaceRank, myRankingServiceProvider
+import 'package:moods/features/home/widget/my_ranking/my_ranking_service.dart';
+import 'package:moods/providers.dart';
 
-/// 화면 상태
 class MyRankingState {
   final bool loading;
   final bool loadedOnce;
   final String? error;
-  final List<MySpaceRank> items; // <-- 여기 타입을 MySpaceRank로
+  final List<MySpaceRank> items;
 
   const MyRankingState({
     this.loading = false,
@@ -19,8 +19,8 @@ class MyRankingState {
   MyRankingState copyWith({
     bool? loading,
     bool? loadedOnce,
-    String? error,
-    List<MySpaceRank>? items, // <-- 동일하게 맞춰주기
+    String? error, // null 대입으로 클리어
+    List<MySpaceRank>? items,
   }) {
     return MyRankingState(
       loading: loading ?? this.loading,
@@ -31,10 +31,8 @@ class MyRankingState {
   }
 }
 
-/// 비즈니스 로직
 class MyRankingController extends StateNotifier<MyRankingState> {
   final MyRankingService service;
-
   MyRankingController({required this.service}) : super(const MyRankingState());
 
   Future<void> loadIfNeeded() async {
@@ -45,12 +43,21 @@ class MyRankingController extends StateNotifier<MyRankingState> {
   Future<void> refresh() async {
     state = state.copyWith(loading: true, error: null);
     try {
-      final items = await service.fetchMySpacesRanks(); // List<MySpaceRank>
+      final list = await service.fetchMySpacesRanks();
+      final top5 = list.take(5).toList(growable: false);
+
+      print(
+        '[MyRankingController] fetched count=${list.length} (top5=${top5.length}'
+        '${top5.isNotEmpty ? ', first=${top5.first.spaceName}' : ''})',
+      );
+
       state = state.copyWith(
         loading: false,
         loadedOnce: true,
-        items: items, // <-- 타입 일치
+        items: top5,
+        error: null,
       );
+      print('[MyRankingController] state applied. items=${state.items.length}');
     } catch (e) {
       state = state.copyWith(
         loading: false,
@@ -61,12 +68,9 @@ class MyRankingController extends StateNotifier<MyRankingState> {
   }
 }
 
-/// provider
+/// Provider
 final myRankingControllerProvider =
-    StateNotifierProvider<MyRankingController, MyRankingState>(
-      (ref) {
-        final svc = ref.watch(myRankingServiceProvider);
-        return MyRankingController(service: svc);
-      },
-      dependencies: [myRankingServiceProvider], // ← 추가
-    );
+    StateNotifierProvider<MyRankingController, MyRankingState>((ref) {
+      final svc = ref.read(myRankingServiceProvider);
+      return MyRankingController(service: svc);
+    });
