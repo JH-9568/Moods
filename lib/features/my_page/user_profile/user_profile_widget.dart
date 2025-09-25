@@ -54,7 +54,7 @@ class UserProfileWidget extends ConsumerWidget {
       height: 69,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color.fromRGBO(208, 215, 248, 1),
+        color: AppColors.sub,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
