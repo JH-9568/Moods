@@ -288,7 +288,7 @@ class _StudyProgressPainter extends CustomPainter {
   final int studyCount; // 실제 카운트
   final int windowStart; // 윈도우 시작 값(예: 0, 25, 50 ...)
   static const double _railHeight = 6;
-  static const double _tickRadius = 7;
+  static const double _tickRadius = 8;
   static const double _railTail = 12.0;
   static const double _tickInset = _tickRadius; // 틱 중심을 좌우로 반지름만큼 안쪽에 배치
 

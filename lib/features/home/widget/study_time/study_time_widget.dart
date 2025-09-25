@@ -2,7 +2,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:blur/blur.dart';
+// import 'package:blur/blur.dart'; // ⛔️ 제거: Layer blur는 ImageFiltered로 구현
 
 import 'package:moods/common/constants/colors.dart';
 import 'package:moods/common/constants/text_styles.dart';
@@ -19,7 +19,6 @@ class StudyTimeWidget extends ConsumerWidget {
     final m = d.inMinutes % 60;
     final s = d.inSeconds % 60;
     return '${two(h)}:${two(m)}:${two(s)}';
-    // 필요하면 24시간 넘어갈 때 days*24+h 로 확장할 수 있음
   }
 
   @override
@@ -27,16 +26,14 @@ class StudyTimeWidget extends ConsumerWidget {
     final st = ref.watch(studyTimeControllerProvider);
     final notifier = ref.read(studyTimeControllerProvider.notifier);
 
-    // 첫 렌더 직후 1회 로드
     WidgetsBinding.instance.addPostFrameCallback((_) {
       notifier.loadIfNeeded();
     });
 
     return Container(
       width: 361,
-      height: 276,
       decoration: BoxDecoration(
-        color: AppColors.background, // 요구대로 background
+        color: AppColors.background,
         borderRadius: BorderRadius.circular(8),
       ),
       padding: const EdgeInsets.all(16),
@@ -44,69 +41,74 @@ class StudyTimeWidget extends ConsumerWidget {
         child: st.loading && !st.loadedOnce
             ? const CircularProgressIndicator()
             : Stack(
-                alignment: Alignment.topCenter,
+                clipBehavior: Clip.none, // ✅ 넘치는 블러가 잘리지 않도록
                 children: [
-                  // 배경 Glow
-                  Padding(
-                    padding: const EdgeInsets.only(top: 50),
-                    child: Blur(
-                      blur: 15,
-                      borderRadius: BorderRadius.circular(180),
-                      blurColor: const Color(0xFFE8EBF8).withOpacity(0.7),
-                      child: Container(
-                        width: 151,
-                        height: 151,
-                        decoration: const BoxDecoration(shape: BoxShape.circle),
-                      ),
-                    ),
-                  ),
-
-                  // 세그먼트 + 큰 시간 + 에러
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (showSegment)
-                        Padding(
-                          padding: const EdgeInsets.only(
-                            top: 28.0,
-                            bottom: 5.0,
-                          ),
-                          child: StudyTimeSegmented(
-                            // 네가 쓰는 segmented 디자인/타입에 맞게 StudyScope 전달
-                            value: st.scope,
-                            onChanged: (scope) => notifier.setScope(scope),
-                          ),
-                        ),
-
-                      // 큰 시간 (초 포함)
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 180),
-                        child: SizedBox(
-                          key: ValueKey(st.current.inSeconds),
-                          width: 225,
-                          height: 65,
-                          child: Center(
-                            child: Text(
-                              _fmt(st.current),
-                              textAlign: TextAlign.center,
-                              style: AppTextStyles.subtitle.copyWith(
-                                fontSize: 50,
-                                height: 1.3,
-                                letterSpacing: -0.2,
-                                color: st.loading
-                                    ? Colors.black.withOpacity(0.25)
-                                    : Colors.black,
-                              ),
+                  // ✅ Figma: Layer blur 원 (X=121, Y=131, W=151, H=151)
+                  // Stack 안에서
+                  Align(
+                    alignment: Alignment.topCenter, // 가로축은 가운데 고정
+                    child: Transform.translate(
+                      offset: const Offset(0, 8), // Y축으로 40px 내려줌 (원하는 값으로 조정)
+                      child: ImageFiltered(
+                        imageFilter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                        child: Opacity(
+                          opacity: 1,
+                          child: Container(
+                            width: 151,
+                            height: 151,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Color.fromRGBO(239, 232, 227, 1),
                             ),
                           ),
                         ),
                       ),
+                    ),
+                  ),
 
-                      // 에러 있으면 표시
-                      if (st.error != null && st.error!.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 6),
-                          child: Text(
+                  // 콘텐츠(세그먼트 + 시간 + 에러)
+                  Align(
+                    alignment: Alignment.topCenter,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (showSegment)
+                          Padding(
+                            padding: const EdgeInsets.only(
+                              top: 28.0,
+                              bottom: 5.0,
+                            ),
+                            child: StudyTimeSegmented(
+                              value: st.scope,
+                              onChanged: (scope) => notifier.setScope(scope),
+                            ),
+                          ),
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 180),
+                          child: SizedBox(
+                            key: ValueKey(st.current.inSeconds),
+                            width: 225,
+                            height: 65,
+                            child: Center(
+                              child: Text(
+                                _fmt(st.current),
+                                textAlign: TextAlign.center,
+                                style: AppTextStyles.subtitle.copyWith(
+                                  fontSize: 50,
+                                  height: 1.3,
+                                  letterSpacing: -0.2,
+                                  color: st.loading
+                                      ? Colors.black.withOpacity(0.25)
+                                      : Colors.black,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        if (st.error != null && st.error!.isNotEmpty)
+                          const SizedBox(height: 6),
+                        if (st.error != null && st.error!.isNotEmpty)
+                          Text(
                             st.error!,
                             style: const TextStyle(
                               color: Colors.red,
@@ -114,8 +116,8 @@ class StudyTimeWidget extends ConsumerWidget {
                             ),
                             textAlign: TextAlign.center,
                           ),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
                 ],
               ),

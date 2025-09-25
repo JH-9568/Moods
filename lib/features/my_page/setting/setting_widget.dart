@@ -1,4 +1,3 @@
-// lib/features/my_page/setting/setting_widget.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -41,7 +40,7 @@ class SettingSection extends ConsumerWidget {
           Text('설정', style: AppTextStyles.subtitle),
           const SizedBox(height: 12),
           _tile(
-            title: '로그아웃',
+            title: Text('로그아웃', style: AppTextStyles.bodyBold),
             onTap: account.deleting
                 ? null
                 : () async {
@@ -58,7 +57,7 @@ class SettingSection extends ConsumerWidget {
                   },
           ),
           _tile(
-            title: '탈퇴',
+            title: Text('탈퇴', style: AppTextStyles.bodyBold),
             onTap: account.deleting
                 ? null
                 : () async {
@@ -80,10 +79,18 @@ class SettingSection extends ConsumerWidget {
                 : null,
           ),
           _tile(
-            title: '버전 정보',
-            trailing: Text(
-              appVersionText,
-              style: AppTextStyles.small.copyWith(color: AppColors.text_color2),
+            title: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('버전 정보', style: AppTextStyles.bodyBold),
+                const SizedBox(width: 7), // ← 간격 원하는 대로 조정
+                Text(
+                  appVersionText,
+                  style: AppTextStyles.small.copyWith(
+                    color: AppColors.text_color2,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -97,14 +104,14 @@ class SettingSection extends ConsumerWidget {
     margin: const EdgeInsets.only(bottom: 6),
   );
 
-  Widget _tile({required String title, VoidCallback? onTap, Widget? trailing}) {
+  Widget _tile({required Widget title, VoidCallback? onTap, Widget? trailing}) {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.symmetric(vertical: 3),
         child: Row(
           children: [
-            Expanded(child: Text(title, style: AppTextStyles.bodyBold)),
+            Expanded(child: title), // 이제 title이 위젯이므로 Row도 넣을 수 있음
             if (trailing != null) trailing,
           ],
         ),

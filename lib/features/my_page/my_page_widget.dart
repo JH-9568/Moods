@@ -9,10 +9,8 @@ import 'package:moods/features/my_page/setting/setting_widget.dart';
 import 'package:moods/features/my_page/user_profile/user_profile_widget.dart';
 import 'package:moods/features/my_page/space_study_count_widget.dart';
 import 'package:moods/features/my_page/my_page_study_record_widget.dart';
-import 'package:moods/features/my_page/setting/setting_widget.dart';
 
-// 통계 로딩 트리거(누적횟수 / 장소개수) — 위젯 내부에서 처리해도 되지만
-// 진입 즉시 한번 보장해주려고 initState에서 불러줍니다.
+// 통계 로딩 트리거
 import 'package:moods/features/home/widget/study_count/study_count_controller.dart';
 import 'package:moods/features/my_page/space_count/space_count_controller.dart';
 
@@ -24,12 +22,12 @@ class MyPageWidget extends ConsumerStatefulWidget {
 }
 
 class _MyPageWidgetState extends ConsumerState<MyPageWidget> {
-  static const double _headerHeight = 335.0;
+  // ✅ "베젤 포함" 헤더 총 높이를 고정값 393으로 지정
+  static const double _headerTotalHeight = 300.0;
 
   @override
   void initState() {
     super.initState();
-    // 첫 진입 시 통계값 로드 (위젯 내부에서도 loadIfNeeded를 하더라도 중복 호출 방지됨)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       ref.read(studyCountControllerProvider.notifier).loadIfNeeded();
@@ -39,61 +37,72 @@ class _MyPageWidgetState extends ConsumerState<MyPageWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final statusBar = MediaQuery.of(context).padding.top; // 베젤(상단 안전영역) 높이
+    const headerColor = AppColors.sub;
+
+    // ✅ 실제 헤더 컨테이너(베젤 아래 영역) 높이 = 총 393 - 베젤
+    final double headerBodyHeight = (_headerTotalHeight - statusBar).clamp(
+      0.0,
+      double.infinity,
+    );
+
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              // ─────────────────────────────────────────────
-              // 1) 상단 헤더 (연보라 배경 335px)
-              //    내부에 UserProfileWidget 배치
-              // ─────────────────────────────────────────────
-              Container(
-                width: double.infinity,
-                height: _headerHeight,
-                color: const Color.fromRGBO(208, 215, 248, 1),
-                padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  // UserProfileWidget은 요청한 272x69 사이즈로 자체 렌더링됨
-                  child: const UserProfileWidget(),
-                ),
-              ),
+      backgroundColor: headerColor, // ⬅️ 헤더색으로 배경 통일
+      body: Column(
+        children: [
+          // ✅ 베젤 영역: 반드시 포함(색 동일)
+          Container(height: statusBar, color: headerColor),
 
-              // ─────────────────────────────────────────────
-              // 2) 통계 카드(작은 컨테이너)를 헤더 아래로 겹치게 올림
-              //    원하는 “얹혀 있는” 느낌을 위해 위로 34px 끌어올림
-              // ─────────────────────────────────────────────
-              Transform.translate(
-                offset: const Offset(0, -34),
-                child:
-                    const SpaceStudyCountWidget(), // 329x69 / radius 8 / 가운데 흰색 라인
-              ),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  // ───────── 헤더 영역 (베젤 제외분) ─────────
+                  Container(
+                    width: double.infinity,
+                    height: headerBodyHeight, // ⬅️ 393 - statusBar
+                    color: headerColor,
+                    child: Stack(
+                      children: [
+                        Positioned(
+                          left: 16,
+                          right: 16,
+                          top: 230, // 기존 배치 유지 (필요시 여기만 미세 조정)
+                          child: const UserProfileWidget(),
+                        ),
+                      ],
+                    ),
+                  ),
 
-              // 겹친 만큼 아래 여백 보정
-              const SizedBox(height: 10),
-
-              // ─────────────────────────────────────────────
-              // 3) 공부 기록 섹션 (마이페이지 전용 카드 + 리스트)
-              // ─────────────────────────────────────────────
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16),
-                child: MyPageStudyRecordWidget(),
+                  // ───────── 본문 영역 (배경 = background) ─────────
+                  Container(
+                    width: double.infinity,
+                    color: AppColors.background,
+                    child: Column(
+                      children: [
+                        Transform.translate(
+                          offset: const Offset(0, -34),
+                          child: const SpaceStudyCountWidget(),
+                        ),
+                        const SizedBox(height: 0),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 16),
+                          child: MyPageStudyRecordWidget(),
+                        ),
+                        const SizedBox(height: 16),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 16),
+                          child: SettingSection(),
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
-
-              // ─────────────────────────────────────────────
-              // 4) 설정 섹션 (로그아웃/탈퇴/버전)
-              // ─────────────────────────────────────────────
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16),
-                child: SettingSection(),
-              ),
-              const SizedBox(height: 24),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

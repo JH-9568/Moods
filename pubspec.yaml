@@ -50,6 +50,7 @@ flutter:
     - assets/fonts/icons/kakao.svg
     - assets/fonts/icons/toggle_active.svg
     - assets/fonts/icons/toggle_inactive.svg
+    - assets/fonts/icons/crown.svg
     - assets/fonts/
 
   fonts:

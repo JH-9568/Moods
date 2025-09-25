@@ -50,7 +50,7 @@ GoRouter createAppRouter() {
   final authStream = supa.auth.onAuthStateChange;
 
   return GoRouter(
-    initialLocation: '/home',
+    initialLocation: '/profile',
     refreshListenable: Listenable.merge([
       GoRouterRefresh(authStream),
       routerPing,
@@ -72,26 +72,22 @@ GoRouter createAppRouter() {
       }
 
       // 2) 로그인 게이트
-      // 2-1) SharedPreferences (이메일/비번 로그인용 커스텀 토큰)
       final prefs = await SharedPreferences.getInstance();
       final spToken = prefs.getString('access_token');
       final hasSp = spToken != null && spToken.isNotEmpty;
 
-      // 2-2) Supabase 세션(카카오 OAuth 등)
       final session = supa.auth.currentSession;
       final hasSupa = session != null;
 
       final loggedIn = hasSp || hasSupa;
       const authPages = {'/start', '/register', '/reset-password'};
 
-      // ── 비로그인
       if (!loggedIn) {
         _cachedUid = null;
         _cachedProfileFilled = null;
         return authPages.contains(path) ? null : '/start';
       }
 
-      // ── 로그인됨 (카카오/이메일 공통)
       if (hasSupa) {
         final uid = session!.user.id;
 
@@ -124,20 +120,18 @@ GoRouter createAppRouter() {
 
         if (filled == false && path != '/kakao') return '/kakao';
 
-        // 약관 동의 여부
         final termsDone = prefs.getBool('terms_done') ?? false;
         if (!termsDone && path != '/terms') return '/terms';
       } else {
-        // 커스텀 토큰만 있는 경우(이메일/비번 로그인)
         final termsDone = prefs.getBool('terms_done') ?? false;
         if (!termsDone && path != '/terms') return '/terms';
       }
 
-      // 로그인 상태에서 인증/가입 화면 접근 시 홈으로
       if (authPages.contains(path)) return '/home';
       return null;
     },
     routes: [
+      // --- 인증/온보딩 라우트(기존 builder 유지) ---
       GoRoute(path: '/start', builder: (_, __) => const StartScreen()),
       GoRoute(path: '/register', builder: (_, __) => const RegisterScreen()),
       GoRoute(path: '/kakao', builder: (_, __) => const AdditionalInfoScreen()),
@@ -168,18 +162,41 @@ GoRouter createAppRouter() {
           return RecordTimerScreen(startArgs: args);
         },
       ),
+
+      // --- 탭 구조: ShellRoute ---
       ShellRoute(
-        builder: (_, __, child) => Scaffold(
-          extendBodyBehindAppBar: true,
-          appBar: const CustomAppBar(),
-          body: child,
-          bottomNavigationBar: const CustomBottomNav(),
-        ),
+        builder: (context, state, child) {
+          final String path = state.uri.path; // 예: '/profile', '/home' ...
+          final bool isProfile =
+              path == '/profile' || path.startsWith('/profile/');
+
+          return Scaffold(
+            extendBodyBehindAppBar: true,
+            appBar: isProfile ? null : const CustomAppBar(),
+            body: child,
+            bottomNavigationBar: const CustomBottomNav(),
+          );
+        },
+        // ✅ 탭 4개는 모두 NoTransitionPage로: 전환 애니메이션 제거
         routes: [
-          GoRoute(path: '/home', builder: (_, __) => const HomeScreen()),
-          GoRoute(path: '/explore', builder: (_, __) => const ExploreScreen()),
-          GoRoute(path: '/map', builder: (_, __) => const MapScreen()),
-          GoRoute(path: '/profile', builder: (_, __) => const MyPageWidget()),
+          GoRoute(
+            path: '/home',
+            pageBuilder: (_, __) => const NoTransitionPage(child: HomeScreen()),
+          ),
+          GoRoute(
+            path: '/explore',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: ExploreScreen()),
+          ),
+          GoRoute(
+            path: '/map',
+            pageBuilder: (_, __) => const NoTransitionPage(child: MapScreen()),
+          ),
+          GoRoute(
+            path: '/profile',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: MyPageWidget()),
+          ),
         ],
       ),
     ],

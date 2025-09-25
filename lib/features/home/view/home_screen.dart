@@ -1,13 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:moods/features/home/widget/my_ranking/my_ranking_widget.dart';
 import 'package:flutter/material.dart';
-import 'package:moods/common/widgets/custom_app_bar.dart';
 import 'package:moods/common/constants/colors.dart';
 import 'package:moods/features/home/widget/my_moods/my_moods_section.dart';
 import 'package:moods/features/home/widget/study_count/study_count_widget.dart';
 import 'package:moods/common/constants/text_styles.dart';
 import 'package:moods/features/home/widget/study_time/study_time_widget.dart';
-import 'package:moods/features/home/widget/study_record/home_record_empty.dart';
 import 'package:moods/features/home/widget/study_record/home_record_widget.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -31,7 +29,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.only(left: 16, right: 16, bottom: 20),
           child: Column(
             children: [
               // 예시: home_page.dart 일부
@@ -39,7 +37,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 showSegment: true, // 세그먼트(이번 달/이번 주) 표시
               ),
               StudyCountWidget(),
-              const SizedBox(height: 16),
+              const SizedBox(height: 30),
               // 1. 나만의 Moods
               MyMoodsSection(
                 studyCount: studyCount,
