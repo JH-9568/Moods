@@ -18,7 +18,7 @@ class SignUpCompleteScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.main,
+      backgroundColor: AppColors.sub,
       body: SafeArea(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -53,10 +53,7 @@ class SignUpCompleteScreen extends StatelessWidget {
             const SizedBox(height: 8),
             const Text(
               'OO을 시작해 보세요',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.white,
-              ),
+              style: TextStyle(fontSize: 14, color: Colors.white),
             ),
             const Spacer(),
             Padding(

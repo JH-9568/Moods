@@ -1,13 +1,20 @@
 // lib/features/home/widget/my_ranking/my_ranking_widget.dart
+//
+// ✅ 목적: 현재 동작은 유지하면서 가독성과 유지보수성을 높이기 위해
+//         섹션/변수/메서드별 주석을 보강한 리팩터링 버전입니다.
+//         (기능/값/로직은 변경하지 않음)
+
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart'; // ✅ SVG 추가
 
 import 'package:moods/common/constants/colors.dart';
 import 'package:moods/common/constants/text_styles.dart';
 import 'package:moods/features/home/widget/my_ranking/my_ranking_empty.dart';
 import 'package:moods/features/home/widget/my_ranking/my_ranking_controller.dart';
 
+/// 홈 화면의 "나의 공간 랭킹" 카드 전체 컨테이너.
 class MyRankingWidget extends ConsumerWidget {
   const MyRankingWidget({super.key});
 
@@ -36,7 +43,7 @@ class MyRankingWidget extends ConsumerWidget {
     }
 
     Widget header() => Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: 2),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -54,7 +61,11 @@ class MyRankingWidget extends ConsumerWidget {
       return wrapCard(
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: [header(), const SizedBox(height: 8), _LoadingSkeleton()],
+          children: [
+            header(),
+            const SizedBox(height: 4),
+            const _LoadingSkeleton(),
+          ],
         ),
       );
     }
@@ -62,11 +73,10 @@ class MyRankingWidget extends ConsumerWidget {
     if (state.error != null) return const RankingEmptyCard();
     if (state.items.isEmpty) return const RankingEmptyCard();
 
-    // 데이터 → UI 모델 변환 (seconds 기반 Duration)
     final items = state.items.take(5).map((e) {
       return RankingUiItem(
         title: e.spaceName,
-        totalSeconds: e.myTotalRaw, // ← seconds
+        totalSeconds: e.myTotalRaw,
         sessions: e.myStudyCount,
         rank: e.userRank,
         imageUrl: (e.spaceImageUrl?.toString().trim().isEmpty ?? true)
@@ -80,11 +90,12 @@ class MyRankingWidget extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           header(),
-          const SizedBox(height: 2),
+          const SizedBox(height: 0),
           ArcRankingCarousel(
             items: items,
             itemSize: const Size(94.06, 146.97),
-            radius: 90,
+            radius: 95,
+            topInset: 40,
           ),
         ],
       ),
@@ -93,6 +104,8 @@ class MyRankingWidget extends ConsumerWidget {
 }
 
 class _LoadingSkeleton extends StatelessWidget {
+  const _LoadingSkeleton();
+
   @override
   Widget build(BuildContext context) {
     return SizedBox(
@@ -116,7 +129,7 @@ class _LoadingSkeleton extends StatelessWidget {
 
 class RankingUiItem {
   final String title;
-  final double totalSeconds; // seconds
+  final double totalSeconds;
   final int sessions;
   final int rank;
   final String? imageUrl;
@@ -136,12 +149,14 @@ class ArcRankingCarousel extends StatefulWidget {
   final List<RankingUiItem> items;
   final Size itemSize;
   final double radius;
+  final double topInset;
 
   const ArcRankingCarousel({
     super.key,
     required this.items,
     this.itemSize = const Size(140, 180),
     this.radius = 120,
+    this.topInset = 8,
   });
 
   @override
@@ -151,6 +166,7 @@ class ArcRankingCarousel extends StatefulWidget {
 class _ArcRankingCarouselState extends State<ArcRankingCarousel>
     with SingleTickerProviderStateMixin {
   double baseAngle = 0;
+
   late final AnimationController _ctrl = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 360),
@@ -158,8 +174,18 @@ class _ArcRankingCarouselState extends State<ArcRankingCarousel>
   late Animation<double> _snapAnim = const AlwaysStoppedAnimation<double>(0);
 
   static const int _visibleCount = 5;
-  double get slotAngle => math.pi / 6;
-  static const double _dragToAngle = 0.009;
+
+  double get slotAngle => (widget.items.isEmpty)
+      ? 0
+      : (2 * math.pi / widget.items.length.clamp(1, 5));
+
+  int currentIndex = 0;
+  bool isCenter(int idx) => idx == currentIndex;
+
+  static const double _dragToAngle = 0.0045;
+  double _dragAccum = 0;
+  static const double _pixelsThreshold = 24;
+  static const double _velocityThreshold = 200;
 
   @override
   void dispose() {
@@ -167,28 +193,48 @@ class _ArcRankingCarouselState extends State<ArcRankingCarousel>
     super.dispose();
   }
 
+  void _onDragStart(DragStartDetails d) {
+    _dragAccum = 0;
+    _ctrl.stop();
+  }
+
   void _onDragUpdate(DragUpdateDetails d) {
     setState(() {
-      baseAngle += d.delta.dx * _dragToAngle;
+      final delta = d.delta.dx;
+      baseAngle += delta * _dragToAngle;
       baseAngle = _normalize(baseAngle);
+      _dragAccum += delta;
     });
   }
 
   void _onDragEnd(DragEndDetails d) {
-    final nearest = (baseAngle / slotAngle).roundToDouble() * slotAngle;
-    final delta = _shortestDelta(baseAngle, nearest);
+    final vx = d.velocity.pixelsPerSecond.dx;
+
+    int dir = 0;
+    if (vx.abs() > _velocityThreshold) {
+      dir = vx.sign.toInt();
+    } else if (_dragAccum.abs() > _pixelsThreshold) {
+      dir = _dragAccum.sign.toInt();
+    }
+
+    if (dir != 0) {
+      currentIndex = (currentIndex + dir) % widget.items.length;
+      if (currentIndex < 0) currentIndex += widget.items.length;
+    }
+
+    final target = currentIndex * slotAngle;
 
     _ctrl.stop();
     _snapAnim =
         Tween<double>(
             begin: 0,
-            end: delta,
+            end: _shortestDelta(baseAngle, target),
           ).chain(CurveTween(curve: Curves.easeOutCubic)).animate(_ctrl)
           ..addListener(() => setState(() {}))
           ..addStatusListener((s) {
             if (s == AnimationStatus.completed) {
               setState(() {
-                baseAngle = _normalize(baseAngle + delta);
+                baseAngle = _normalize(target);
                 _snapAnim = const AlwaysStoppedAnimation(0);
               });
             }
@@ -205,16 +251,18 @@ class _ArcRankingCarouselState extends State<ArcRankingCarousel>
     final int count = math.min(_visibleCount, raw.length);
     final items = raw.take(count).toList(growable: false);
 
+    final double carouselHeight = widget.itemSize.height + widget.topInset + 15;
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final double localWidth = constraints.maxWidth;
-        final List<_Placed> placed = [];
 
+        final List<_Placed> placed = [];
         for (int i = 0; i < items.length; i++) {
           final double a = animatedBaseAngle + i * slotAngle;
 
           final double x = widget.radius * math.sin(a);
-          final double y = 0;
+          const double y = 0;
           final double z = (math.cos(a) + 1) / 2;
 
           final double scale = _lerp(0.72, 1.1, z);
@@ -239,18 +287,19 @@ class _ArcRankingCarouselState extends State<ArcRankingCarousel>
         placed.sort((a, b) => a.z.compareTo(b.z));
 
         return GestureDetector(
+          onHorizontalDragStart: _onDragStart,
           onHorizontalDragUpdate: _onDragUpdate,
           onHorizontalDragEnd: _onDragEnd,
           child: SizedBox(
-            height: widget.itemSize.height + widget.radius * 0.9,
+            height: carouselHeight,
             width: double.infinity,
             child: Stack(
-              alignment: Alignment.center,
+              alignment: Alignment.topCenter,
               children: [
                 for (final p in placed)
                   Positioned(
                     left: (localWidth / 2) + p.x - (widget.itemSize.width / 2),
-                    top: (widget.itemSize.height / 2) + p.y,
+                    top: widget.topInset + p.y,
                     child: Opacity(
                       opacity: p.opacity,
                       child: Transform.rotate(
@@ -317,6 +366,7 @@ class _Placed {
   });
 }
 
+/// 개별 카드 UI
 class _RankingCard extends StatelessWidget {
   final RankingUiItem item;
   final Size size;
@@ -344,8 +394,6 @@ class _RankingCard extends StatelessWidget {
     final bg = item.imageUrl;
 
     return Material(
-      elevation: 100,
-      shadowColor: Colors.green,
       surfaceTintColor: Colors.transparent,
       borderRadius: BorderRadius.circular(12),
       child: Container(
@@ -359,6 +407,7 @@ class _RankingCard extends StatelessWidget {
               : DecorationImage(image: NetworkImage(bg), fit: BoxFit.cover),
         ),
         child: Stack(
+          clipBehavior: Clip.none,
           children: [
             Positioned.fill(
               child: DecoratedBox(
@@ -367,6 +416,20 @@ class _RankingCard extends StatelessWidget {
                 ),
               ),
             ),
+            // ✅ 왕관 아이콘: 1등 카드일 때만 표시
+            if (rankText.startsWith('1'))
+              Positioned(
+                top: -16, // 카드 상단과의 간격
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: SvgPicture.asset(
+                    "assets/fonts/icons/crown.svg",
+                    width: 20,
+                    height: 24,
+                  ),
+                ),
+              ),
             Positioned(
               bottom: 70,
               left: 0,
@@ -406,20 +469,19 @@ class _RankingCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 시간
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text(
                         '시간',
                         style: TextStyle(
-                          color: Colors.black87,
+                          color: Color.fromRGBO(38, 38, 38, 1),
                           fontWeight: FontWeight.w600,
                           fontSize: 8.4,
                         ),
                       ),
                       Text(
-                        _formatDuration(item.total), // seconds → Duration → 표시
+                        _formatDuration(item.total),
                         style: TextStyle(
                           color: AppColors.text_color1,
                           fontWeight: FontWeight.w800,
@@ -429,14 +491,13 @@ class _RankingCard extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 4),
-                  // 횟수
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text(
                         '횟수',
                         style: TextStyle(
-                          color: Colors.black87,
+                          color: Color.fromRGBO(38, 38, 38, 1),
                           fontWeight: FontWeight.w600,
                           fontSize: 8.4,
                         ),

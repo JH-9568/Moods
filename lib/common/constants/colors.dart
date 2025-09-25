@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  static const main = Color.fromRGBO(119, 133, 214, 1);
-  static const background = Color.fromRGBO(249, 250, 255, 1);
-  static const checked = Color.fromRGBO(119, 133, 214, 1);
-  static const unchecked = Color.fromRGBO(208, 214, 226, 1);
-  static const border = Color.fromRGBO(231, 235, 248, 1);
-  static const sub = Color.fromRGBO(167, 179, 241, 1);
-  static const text_color1 = Color.fromRGBO(69, 88, 193, 1);
+  static const main = Color.fromRGBO(121, 97, 86, 1);
+  static const background = Color.fromRGBO(255, 255, 255, 1);
+  static const checked = Color.fromRGBO(121, 97, 84, 1);
+  static const unchecked = Color.fromRGBO(225, 219, 212, 1);
+  static const border = Color.fromRGBO(241, 232, 226, 1);
+  static const sub = Color.fromRGBO(157, 137, 123, 1);
+  static const text_color1 = Color.fromRGBO(82, 62, 48, 1);
   static const text_color2 = Color.fromRGBO(122, 124, 130, 1);
   //  Default
   static const Color white = Color(0xFFFFFFFF);

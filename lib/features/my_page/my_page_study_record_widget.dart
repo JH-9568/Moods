@@ -63,7 +63,7 @@ class MyPageStudyRecordWidget extends ConsumerWidget {
               ),
             ],
           ),
-          const SizedBox(height: 6),
+
           // 서브 텍스트
           Text(
             '나의 공부 기록을 최신순으로 확인해보세요',

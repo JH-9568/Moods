@@ -169,12 +169,21 @@ GoRouter createAppRouter() {
         },
       ),
       ShellRoute(
-        builder: (_, __, child) => Scaffold(
-          extendBodyBehindAppBar: true,
-          appBar: const CustomAppBar(),
-          body: child,
-          bottomNavigationBar: const CustomBottomNav(),
-        ),
+        builder: (context, state, child) {
+          // 현재 경로를 안전하게 가져와 판별
+          final String path = state.uri.path; // 예: '/profile', '/home' ...
+          final bool isProfile =
+              path == '/profile' || path.startsWith('/profile/');
+
+          return Scaffold(
+            extendBodyBehindAppBar: true,
+            appBar: isProfile
+                ? null
+                : const CustomAppBar(), // ✅ /profile에서만 AppBar 제거
+            body: child,
+            bottomNavigationBar: const CustomBottomNav(),
+          );
+        },
         routes: [
           GoRoute(path: '/home', builder: (_, __) => const HomeScreen()),
           GoRoute(path: '/explore', builder: (_, __) => const ExploreScreen()),
