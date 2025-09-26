@@ -150,7 +150,7 @@ class _MoodChip extends StatelessWidget {
             height: 34,
             padding: const EdgeInsets.symmetric(horizontal: 14),
             alignment: Alignment.center,
-            // ✅ 텍스트 두께 살짝 낮춤(너무 볼드 X)
+            //  텍스트 두께 살짝 낮춤(너무 볼드 X)
             child: Text(label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: fg)),
           ),
         ),

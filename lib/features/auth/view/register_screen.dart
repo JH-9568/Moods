@@ -197,7 +197,7 @@ Future<void> _onSubmit() async {
   // 생일 포맷: YYYY.MM.DD -> YYYY-MM-DD
   final birthHyphen = birthController.text.replaceAll('.', '-');
 
-  // 성별 포맷: '남성'|'여성' -> 'm'|'f' (백엔드 요구에 맞춰)
+  // 성별 포맷: '남성'|'여성' -> 'm'|'f' 
   String genderLetter;
   switch (selectedGender) {
     case '남성': genderLetter = 'm'; break;
@@ -211,7 +211,7 @@ Future<void> _onSubmit() async {
   }
 
   final ok = await controller.completeEmailSignUp(
-    userId: _signupUuid!,       // ★ 여기 중요
+    userId: _signupUuid!,      
     email: email,
     password: passwordController.text,
     nickname: nicknameController.text.trim(),
@@ -222,7 +222,7 @@ Future<void> _onSubmit() async {
   if (!mounted) return;
 
   if (ok) {
-    context.go('/terms'); // 원래 플로우: terms -> complete -> home
+    context.go('/terms');
   } else {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('회원정보 저장에 실패했습니다. 다시 시도해주세요.')),
@@ -440,7 +440,7 @@ Future<void> _onSubmit() async {
   children: [
     Expanded(
       child: ElevatedButton(
-        onPressed: canRequest ? _handleEmailVerification : null, // ✅ 확인 완료면 null
+        onPressed: canRequest ? _handleEmailVerification : null, // 확인 완료면 null
         style: ElevatedButton.styleFrom(
           backgroundColor: requestBtnBg,      //  확인 완료면 회색(비활성 색)
           foregroundColor: AppColors.white,

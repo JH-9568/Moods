@@ -154,7 +154,7 @@ class _StartScreenState extends ConsumerState<StartScreen> {
                       ),
                     ),
 
-                    // 아래로 밀기(회원가입/카카오 버튼을 거의 바닥에)
+                    // 아래로 밀기
                     const Spacer(),
 
                     // 회원가입
@@ -206,7 +206,7 @@ class _StartScreenState extends ConsumerState<StartScreen> {
                       ),
                     ),
 
-                    // 하단 붙이기(시안처럼 거의 바닥)
+                    // 하단 붙이기
                     const SafeArea(top: false, bottom: true, child: SizedBox(height: 55)),
                   ],
                 ), 

@@ -6,7 +6,7 @@ class AppTextStyles {
     fontFamily: 'Pretendard',
     fontWeight: FontWeight.w700, // bold
     fontSize: 26,
-    height: 1.4,
+    height: 1.3,
     color: AppColors.black,
   );
 

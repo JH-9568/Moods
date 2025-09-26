@@ -86,7 +86,7 @@ class _TermsAgreementScreenState extends State<TermsAgreementScreen> {
                 onPressed: isAllChecked
                     ? () async {
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setBool('terms_done', true); // ✅ 약관 동의 플래그 저장
+        await prefs.setBool('terms_done', true); //  약관 동의 플래그 저장
         if (!mounted) return;
         context.go('/complete');                 // 원래 플로우: complete -> home
       }
