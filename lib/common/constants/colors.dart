@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+/// 앱 전역에서 사용되는 색상 토큰
 class AppColors {
   static const main = Color.fromRGBO(121, 97, 86, 1);
   static const background = Color.fromRGBO(255, 255, 255, 1);
@@ -38,6 +39,21 @@ class AppColors {
   //  State (CTA 등)
   static const Color buttonActive = Color(0xFFBDBDF5); // 활성화
   static const Color buttonInactive = Color(0xFFD9D9E0); // 비활성화
+
+  // --- Record Screens ---
+  static const Color recordBg = Color(0xFFF3F5FF);
+  static const Color recordTimerBg = Color(0xFFF9FAFF);
+  static const Color recordPrimaryDeep = Color(0xFF6E6BF0);
+  static const Color recordPrimarySoft = Color(0xFFA7B3F1);
+  static const Color recordChipStroke = Color(0xFFE5E7F4);
+  static const Color recordTextMain = Color(0xFF111318);
+  static const Color recordTextSub = Color(0xFF8C90A4);
+  static const Color recordTextWeak = Color(0xFFB7BED6);
+  static const Color recordDisabledFill = Color(0xFFF0F2F8);
+  static const Color recordDisabledText = Color(0xFFB9C0D6);
+  static const Color recordBrown = Color(0xFF9D897B);
+  static const Color recordDialogBg = Color(0xFFF2F4FF);
+  static const Color recordDialogNo = Color(0xFFB5B9C3);
 
   static const Color kBottomNavBackground = Color(0xFFD1D1F4); // Fill
   static const Color kBottomNavBorder = Color(0xFF000000); // Border

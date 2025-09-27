@@ -1,5 +1,6 @@
 // lib/features/record/controller/record_controller.dart
 import 'dart:async';
+import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -589,6 +590,29 @@ Future<void> startWithArgs(StartArgs args, {BuildContext? context}) async {
     if (_starting) _starting = false;
   }
 }
+
+  Future<Map<String, dynamic>> uploadRecordPhoto(
+      String recordId, File file) async {
+    if (!await _ensureToken()) {
+      throw Exception('로그인이 만료되었습니다. 다시 로그인해 주세요.');
+    }
+    final token = ref.read(authTokenProvider) ?? '';
+    return _svc.uploadRecordPhoto(
+      recordId: recordId,
+      file: file,
+      bearerToken: token,
+    );
+  }
+
+  /// 현재 활성 record_id로 사진 업로드
+  Future<Map<String, dynamic>> uploadPhotoForActiveRecord(File file) async {
+    final rid = state.activeRecordId;
+    if (rid == null || rid.isEmpty) {
+      throw Exception('recordId가 없습니다. 세션 시작 후 업로드하세요.');
+    }
+    return uploadRecordPhoto(rid, file);
+  }
+
  Future<bool> quit({BuildContext? context}) async {
     if (!await _ensureToken()) {
       if (context != null) _showError(context, '로그인이 만료되었습니다. 다시 로그인해 주세요.');
@@ -797,6 +821,16 @@ Future<void> startWithArgs(StartArgs args, {BuildContext? context}) async {
       }
     }
   }
+
+  Future<Map<String, dynamic>> getRecordDetail(String recordId) async {
+  if (!await _ensureToken()) {
+    throw Exception('로그인 필요');
+  }
+  final raw = await _svc.fetchRecordDetail(recordId);
+  // 서버 응답에서 record 블록만 뽑아 전달
+  final rec = _asMap(raw['record'] ?? raw['data'] ?? raw);
+  return rec;
+}
 
   /// Finalize(기록 Step2) 입력 값들을 state에 반영하는 메서드
   void applyFinalizeMeta({

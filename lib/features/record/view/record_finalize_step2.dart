@@ -1,8 +1,6 @@
 // lib/features/record/view/record_finalize_step2.dart
 // ─────────────────────────────────────────────────────────────────────────────
-// Step2: 기록 메타 입력 화면 (리팩토링 버전)
-// - 디자인/동작 동일
-// - 섹션/위젯/유틸로 깔끔하게 분리
+// Step2: 기록 메타 입력 화면 (리팩토링 + 사진 업로드 UI 연결 + 상세값 적용)
 // ─────────────────────────────────────────────────────────────────────────────
 
 import 'dart:io';
@@ -17,6 +15,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:moods/features/record/controller/record_controller.dart';
 import 'package:moods/features/record/view/record_card_preview.dart';
 import 'package:moods/features/record/view/map_view.dart';
+import 'package:moods/common/constants/colors_j.dart';
+import 'package:moods/common/constants/text_styles.dart';
 
 // ╔══════════════════════════════════════════════════════════════════════════╗
 // ║ 1) TOKENS & CONSTANTS                                                    ║
@@ -32,18 +32,6 @@ class Dimens {
   // 감정 칩 간격
   static const emotionGapH = 8.0;
   static const emotionGapV = 10.0;
-}
-
-/// Step2 전용 컬러 토큰
-class C2 {
-  static const bg = Color(0xFFF3F5FF);
-  static const sheetTop = Colors.white;
-  static const surface = Colors.white;
-  static const chipStroke = Color(0xFFE5E7F4);
-  static const primarySoft = Color(0xFFA7B3F1);
-  static const primaryDeep = Color(0xFF6E6BF0);
-  static const textMain = Color(0xFF111318);
-  static const textSub = Color(0xFF8C90A4);
 }
 
 /// 감정/태그 고정 리스트
@@ -68,8 +56,42 @@ const _PLACE_FEATURES = <String>[
   '콘센트 많음', '와이파이 퀄리티 좋음', '소음 높음', '소음 낮음', '자리 많음',
 ];
 
+/// export 응답에서 record_id 추출
+String _recordIdFromResp(Map<String, dynamic> resp) {
+  Map<String, dynamic> asMap(dynamic v) =>
+      v is Map ? Map<String, dynamic>.from(v) : <String, dynamic>{};
+
+  final root = asMap(resp);
+  final data = asMap(root['data']);
+  final record = asMap(root['record'] ?? data['record']);
+
+  final dynamic idAny =
+      record['id'] ??
+      record['record_id'] ??
+      data['id'] ??
+      data['record_id'] ??
+      root['id'] ??
+      root['record_id'];
+
+  final id = idAny?.toString() ?? '';
+  if (id.isEmpty) throw Exception('export 응답에 record_id가 없습니다.');
+  return id;
+}
+
+// 리스트나 문자열을 ", "로 합치기
+String _joinTags(dynamic v) {
+  if (v == null) return '';
+  if (v is List) {
+    return v
+        .map((e) => e is Map ? (e['name']?.toString() ?? e.toString()) : e.toString())
+        .where((s) => s.trim().isNotEmpty)
+        .join(', ');
+  }
+  return v.toString();
+}
+
 // ╔══════════════════════════════════════════════════════════════════════════╗
-// ║ 2) SCREEN                                                                ║
+/* 2) SCREEN */
 // ╚══════════════════════════════════════════════════════════════════════════╝
 
 class FinalizeStep2Screen extends ConsumerStatefulWidget {
@@ -92,6 +114,7 @@ class _FinalizeStep2ScreenState extends ConsumerState<FinalizeStep2Screen> {
   // ── image state ───────────────────────────────────────────────────────────
   final ImagePicker _picker = ImagePicker();
   XFile? _image;
+  bool _uploading = false; // 업로드 진행 상태
 
   // ── lifecycle ─────────────────────────────────────────────────────────────
   @override
@@ -103,112 +126,83 @@ class _FinalizeStep2ScreenState extends ConsumerState<FinalizeStep2Screen> {
 
   // ── actions ───────────────────────────────────────────────────────────────
   Future<void> _pickImage(ImageSource source) async {
-    try {
-      final pickedFile = await _picker.pickImage(source: source);
-      if (pickedFile != null) setState(() => _image = pickedFile);
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('이미지를 가져오는데 실패했습니다: $e')),
-      );
-    }
+  if (_uploading) return;
+  try {
+    final pickedFile = await _picker.pickImage(source: source, imageQuality: 92);
+    if (pickedFile == null) return;
+
+    // 미리보기만 표시
+    if (!mounted) return;
+    setState(() {
+      _image = pickedFile;
+      _uploading = false;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('사진이 선택되었습니다. 생성 시 함께 업로드됩니다.')),
+    );
+  } catch (e) {
+    if (!mounted) return;
+    setState(() => _uploading = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('사진 선택 실패: $e')),
+    );
   }
+}
+
 
   Future<void> _submit() async {
-    setState(() => _submitting = true);
-    try {
-      if (_selectedSpaceId == null || _selectedSpaceId!.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('지도를 열어 공간을 선택해 주세요.')),
-        );
-        return;
-      }
-
-      final notifier = ref.read(recordControllerProvider.notifier);
-      notifier.applyFinalizeMeta(
-        title: _titleCtrl.text.trim().isEmpty ? '공부 기록' : _titleCtrl.text.trim(),
-        emotionTagIds: _selectedEmotions.toList(),
-        spaceId: _selectedSpaceId!,
+  setState(() => _submitting = true);
+  try {
+    // 공간 필수
+    if (_selectedSpaceId == null || _selectedSpaceId!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('지도를 열어 공간을 선택해 주세요.')),
       );
-
-      final resp = await notifier.exportToRecord();
-      final ok = resp['success'] == true;
-      final data = (resp['data'] is Map<String, dynamic>)
-          ? resp['data'] as Map<String, dynamic>
-          : <String, dynamic>{};
-      if (!ok || data.isEmpty) {
-        throw Exception('서버 응답이 올바르지 않습니다: $resp');
-      }
-
-      // ── 데이터 파싱
-      String title = (data['title']?.toString() ?? '').trim();
-      final double durSec = (data['duration'] is num)
-          ? (data['duration'] as num).toDouble()
-          : double.tryParse('${data['duration']}') ?? 0.0;
-
-      DateTime? _iso(v) {
-        try {
-          return DateTime.parse('$v').toLocal();
-        } catch (_) {
-          return null;
-        }
-      }
-
-      final endedAt = _iso(data['end_time']) ?? DateTime.now();
-      final startedAt = _iso(data['start_time']) ??
-          endedAt.subtract(Duration(milliseconds: (durSec * 1000).round()));
-
-      final goalsDone =
-          (data['goals'] is List ? data['goals'] as List : const [])
-              .whereType<Map>()
-              .where((g) => g['done'] == true)
-              .map((g) => (g['text'] ?? '').toString())
-              .where((s) => s.isNotEmpty)
-              .toList();
-
-      List<String> _toStrList(v) {
-        if (v is List) return v.map((e) => e.toString()).toList();
-        if (v is String && v.isNotEmpty) return [v];
-        return const <String>[];
-      }
-
-      final moods = _toStrList(data['mood_id']);
-      final emotionTags = _toStrList(data['emotion_tag_ids']);
-      final focus = Duration(milliseconds: max(0, (durSec * 1000).round()));
-
-      final st2 = ref.read(recordControllerProvider);
-      final ImageProvider? bgProvider = _image != null
-          ? FileImage(File(_image!.path))
-          : (st2.wallpaperUrl.trim().isNotEmpty
-              ? NetworkImage(st2.wallpaperUrl)
-              : null);
-
-      final preview = RecordCardData(
-        date: endedAt,
-        focusTime: focus,
-        totalTime: endedAt.difference(startedAt).isNegative
-            ? focus
-            : endedAt.difference(startedAt),
-        title: title.isNotEmpty ? title : (st2.title.isNotEmpty ? st2.title : '공부 기록'),
-        goalsDone: goalsDone,
-        moods: moods.isNotEmpty ? moods : st2.selectedMoods,
-        placeName: _spaceCtrl.text.trim().isNotEmpty ? _spaceCtrl.text.trim() : '미정',
-        placeType: '공간',
-        placeMood: emotionTags.isNotEmpty ? emotionTags.join(', ') : '무드 미정',
-        tags: _selectedPlaceTags.toList(),
-        background: bgProvider,
-      );
-
-      await showRecordCardPreview(context, preview);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('생성 실패: $e')));
-      }
-    } finally {
-      if (mounted) setState(() => _submitting = false);
+      return;
     }
+
+    final notifier = ref.read(recordControllerProvider.notifier);
+
+    // 화면 메타 로컬 반영
+    notifier.applyFinalizeMeta(
+      title: _titleCtrl.text.trim().isEmpty ? '공부 기록' : _titleCtrl.text.trim(),
+      emotionTagIds: _selectedEmotions.toList(),
+      spaceId: _selectedSpaceId!,
+    );
+
+    // 1) 기록 생성
+    final resp = await notifier.exportToRecord();
+    final ok = resp['success'] == true;
+    if (!ok) throw Exception('서버 응답이 올바르지 않습니다: $resp');
+
+    // 2) record_id
+    final recordId = _recordIdFromResp(resp);
+
+    // 3) 사진 업로드(있으면)
+    if (_image != null) {
+      try {
+        await notifier.uploadRecordPhoto(recordId, File(_image!.path));
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('사진 업로드 실패: $e')),
+        );
+      }
+    }
+
+    // 4) 상세조회 값을 공용 파서로 그대로 사용해 미리보기
+    await showRecordCardPreviewFromRecordId(context, ref, recordId);
+
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('생성 실패: $e')));
+    }
+  } finally {
+    if (mounted) setState(() => _submitting = false);
   }
+}
 
   // ── UI builders (섹션별) ───────────────────────────────────────────────────
   Widget _sectionHeader() => const Column(
@@ -219,7 +213,7 @@ class _FinalizeStep2ScreenState extends ConsumerState<FinalizeStep2Screen> {
             style: TextStyle(
               fontSize: Dimens.headerFontSize,
               fontWeight: Dimens.headerWeight,
-              color: C2.textMain,
+              color: AppColorsJ.black,
             ),
           ),
           Text(
@@ -227,7 +221,7 @@ class _FinalizeStep2ScreenState extends ConsumerState<FinalizeStep2Screen> {
             style: TextStyle(
               fontSize: Dimens.headerFontSize,
               fontWeight: Dimens.headerWeight,
-              color: C2.textMain,
+              color: AppColorsJ.black,
             ),
           ),
         ],
@@ -248,7 +242,7 @@ class _FinalizeStep2ScreenState extends ConsumerState<FinalizeStep2Screen> {
           const SizedBox(height: 2),
           const Text(
             '공부할 때 어떤 감정을 느꼈나요?',
-            style: TextStyle(fontSize: 12, color: C2.textSub),
+            style: TextStyle(fontSize: 12, color: AppColorsJ.gray6),
           ),
           const SizedBox(height: 12),
           _EmotionGrid(
@@ -265,12 +259,31 @@ class _FinalizeStep2ScreenState extends ConsumerState<FinalizeStep2Screen> {
         ],
       );
 
-  Widget _sectionImagePicker() => _image == null
-      ? _GhostImagePicker(
-          onCameraTap: () => _pickImage(ImageSource.camera),
-          onGalleryTap: () => _pickImage(ImageSource.gallery),
-        )
-      : _ImagePreview(path: _image!.path, onClear: () => setState(() => _image = null));
+  Widget _sectionImagePicker() {
+    if (_image == null) {
+      return _GhostImagePicker(
+        onCameraTap: _uploading ? null : () => _pickImage(ImageSource.camera),
+        onGalleryTap: _uploading ? null : () => _pickImage(ImageSource.gallery),
+      );
+    }
+
+    // 미리보기 + 업로드 로딩 오버레이
+    return Stack(
+      children: [
+        _ImagePreview(
+          path: _image!.path,
+          onClear: _uploading ? () {} : () => setState(() => _image = null),
+        ),
+        if (_uploading)
+          const Positioned.fill(
+            child: ColoredBox(
+              color: Colors.black38,
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          ),
+      ],
+    );
+  }
 
   Widget _sectionSpacePicker() => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -282,9 +295,9 @@ class _FinalizeStep2ScreenState extends ConsumerState<FinalizeStep2Screen> {
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   elevation: 0,
-                  backgroundColor: C2.primaryDeep,
+                  backgroundColor: AppColorsJ.main3,
                   foregroundColor: Colors.white,
-                  fixedSize: const Size(120, 40), // 너비를 120으로 늘려 줄바꿈 방지
+                  fixedSize: const Size(120, 40),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -301,7 +314,8 @@ class _FinalizeStep2ScreenState extends ConsumerState<FinalizeStep2Screen> {
                     });
                   }
                 },
-                child: const Text('지도에서 선택', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                child: const Text('지도에서 선택',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
               ),
             ],
           ),
@@ -317,7 +331,7 @@ class _FinalizeStep2ScreenState extends ConsumerState<FinalizeStep2Screen> {
           const SizedBox(height: 2),
           const Text(
             '공부에 도움되는 공간의 특징을 정리해보세요.',
-            style: TextStyle(fontSize: 12, color: C2.textSub),
+            style: TextStyle(fontSize: 12, color: AppColorsJ.gray6),
           ),
           const SizedBox(height: 10),
           Wrap(
@@ -330,7 +344,7 @@ class _FinalizeStep2ScreenState extends ConsumerState<FinalizeStep2Screen> {
                   t,
                   style: TextStyle(
                     fontSize: 14,
-                    color: on ? Colors.white : C2.textMain,
+                    color: on ? Colors.white : AppColorsJ.black,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -342,8 +356,8 @@ class _FinalizeStep2ScreenState extends ConsumerState<FinalizeStep2Screen> {
                 },
                 showCheckmark: false,
                 backgroundColor: Colors.white,
-                selectedColor: C2.primarySoft,
-                side: const BorderSide(color: C2.chipStroke),
+                selectedColor: AppColorsJ.main3,
+                side: const BorderSide(color: AppColorsJ.main2),
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 shape: const StadiumBorder(),
               );
@@ -355,20 +369,29 @@ class _FinalizeStep2ScreenState extends ConsumerState<FinalizeStep2Screen> {
   // ── build ─────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
-    // st, ctrl는 리스너 목적으로 남겨둠(동작 동일)
     final st = ref.watch(recordControllerProvider);
     final ctrl = ref.read(recordControllerProvider.notifier);
 
     return Scaffold(
-      backgroundColor: C2.bg,
+      extendBodyBehindAppBar: false,
+      backgroundColor: AppColorsJ.main1,
       appBar: AppBar(
-        backgroundColor: C2.sheetTop,
+        backgroundColor: AppColorsJ.main1,
         elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+        bottom: const PreferredSize(
+          preferredSize: Size.fromHeight(1.0),
+          child: SizedBox(height: 1.0, child: ColoredBox(color: AppColorsJ.main2)),
+        ),
         centerTitle: true,
-        title: const Text('기록하기', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+        title: const Text(
+          '기록하기',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColorsJ.black),
+        ),
         leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: _submitting
+          icon: const Icon(Icons.close, color: AppColorsJ.black),
+          onPressed: (_submitting || _uploading)
               ? null
               : () async {
                   final quit = await _showQuitConfirmDialog(context);
@@ -379,46 +402,26 @@ class _FinalizeStep2ScreenState extends ConsumerState<FinalizeStep2Screen> {
                 },
         ),
       ),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(
-            Dimens.bodyHPad, Dimens.bodyTopPad, Dimens.bodyHPad, 16,
-          ),
-          children: [
-            // ── Header
-            _sectionHeader(),
-            const SizedBox(height: 22),
-
-            // ── 제목
-            _sectionTitleInput(),
-            _InputBox.text(controller: _titleCtrl, hint: '제목 입력'),
-
-            const SizedBox(height: 18),
-
-            // ── 감정
-            _sectionEmotion(),
-
-            const SizedBox(height: 18),
-
-            // ── 이미지 피커
-            _sectionImagePicker(),
-
-            const SizedBox(height: 20),
-
-            // ── 공간 선택/입력
-            _sectionSpacePicker(),
-
-            const SizedBox(height: 20),
-
-            // ── 공간 특징
-            _sectionPlaceFeatures(),
-
-            const SizedBox(height: 90),
-          ],
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(
+          Dimens.bodyHPad, Dimens.bodyTopPad, Dimens.bodyHPad, 16,
         ),
+        children: [
+          _sectionHeader(),
+          const SizedBox(height: 22),
+          _sectionTitleInput(),
+          _InputBox.text(controller: _titleCtrl, hint: '제목 입력'),
+          const SizedBox(height: 18),
+          _sectionEmotion(),
+          const SizedBox(height: 18),
+          _sectionImagePicker(),
+          const SizedBox(height: 20),
+          _sectionSpacePicker(),
+          const SizedBox(height: 20),
+          _sectionPlaceFeatures(),
+          const SizedBox(height: 90),
+        ],
       ),
-
-      // ── 하단 제출 버튼
       bottomNavigationBar: SafeArea(
         top: false,
         child: Padding(
@@ -428,13 +431,15 @@ class _FinalizeStep2ScreenState extends ConsumerState<FinalizeStep2Screen> {
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor:
-                    _submitting ? C2.primaryDeep.withOpacity(.6) : C2.primaryDeep,
+                    (_submitting || _uploading) ? AppColorsJ.gray3Normal : AppColorsJ.main3,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
               ),
-              onPressed: _submitting ? null : _submit,
-              child: const Text('기록카드 생성하기',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+              onPressed: (_submitting || _uploading) ? null : _submit,
+              child: const Text(
+                '기록카드 생성하기',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+              ),
             ),
           ),
         ),
@@ -444,61 +449,122 @@ class _FinalizeStep2ScreenState extends ConsumerState<FinalizeStep2Screen> {
 }
 
 // ╔══════════════════════════════════════════════════════════════════════════╗
-// ║ 3) DIALOGS                                                               ║
+/* 3) DIALOGS  — Step1 과 동일 스타일 */
 // ╚══════════════════════════════════════════════════════════════════════════╝
 
 Future<bool?> _showQuitConfirmDialog(BuildContext context) {
   return showDialog<bool>(
     context: context,
-    builder: (ctx) => AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      contentPadding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
-      titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-      title: const Text(
-        '지금 나가면\n기록이 저장되지 않아요',
-        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: C2.textMain),
-      ),
-      content: const Text(
-        '이어서 기록을 저장하시겠어요?',
-        style: TextStyle(fontSize: 14, color: C2.textSub),
-      ),
-      actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-      actions: [
-        Expanded(
-          child: FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: C2.primaryDeep,
-              minimumSize: const Size.fromHeight(44),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('네\n기록을 저장할래요', textAlign: TextAlign.center),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: OutlinedButton(
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size.fromHeight(44),
-              side: const BorderSide(color: C2.chipStroke),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              foregroundColor: C2.textMain,
-              backgroundColor: C2.surface,
-            ),
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('아니요\n나갈래요', textAlign: TextAlign.center),
-          ),
-        ),
-      ],
-    ),
+    barrierDismissible: true,
+    builder: (_) => const _QuitDialog(),
   );
 }
 
+class _QuitDialog extends StatelessWidget {
+  const _QuitDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: AppColorsJ.gray2,
+      elevation: 0,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              '지금 나가면\n기록이 저장되지 않아요',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.subtitle,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '기록을 저장하시겠어요?',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.caption.copyWith(color: AppColorsJ.black),
+            ),
+            const SizedBox(height: 16),
+            const Row(
+              children: [
+                Expanded(
+                  child: _DialogBigButton(
+                    bg: AppColorsJ.main3,
+                    top: '네',
+                    bottom: '기록을 저장할게요',
+                    isQuit: false,
+                  ),
+                ),
+                SizedBox(width: 12),
+                Expanded(
+                  child: _DialogBigButton(
+                    bg: AppColorsJ.gray4,
+                    top: '아니요',
+                    bottom: '나갈게요',
+                    isQuit: true,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DialogBigButton extends StatelessWidget {
+  final Color bg;
+  final String top, bottom;
+  final bool isQuit;
+
+  const _DialogBigButton({
+    required this.bg,
+    required this.top,
+    required this.bottom,
+    required this.isQuit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 58,
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: bg,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        ),
+        onPressed: () => Navigator.of(context).pop(isQuit),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              top,
+              textAlign: TextAlign.center,
+              style: AppTextStyles.bodyBold.copyWith(color: Colors.white),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              bottom,
+              textAlign: TextAlign.center,
+              style: AppTextStyles.small.copyWith(color: Colors.white),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 // ╔══════════════════════════════════════════════════════════════════════════╗
-// ║ 4) REUSABLE WIDGETS                                                      ║
+/* 4) REUSABLE WIDGETS */
 // ╚══════════════════════════════════════════════════════════════════════════╝
 
-/// 감정 그리드(4열 고정, 좌우대칭, 이모지 포함)
 class _EmotionGrid extends StatelessWidget {
   const _EmotionGrid({
     required this.tags,
@@ -551,7 +617,6 @@ class _EmotionGrid extends StatelessWidget {
   }
 }
 
-/// 고정 너비 감정 칩(이모지 + 텍스트)
 class _EmotionChipFixed extends StatelessWidget {
   const _EmotionChipFixed({
     required this.label,
@@ -567,8 +632,8 @@ class _EmotionChipFixed extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = selected ? C2.primarySoft : Colors.white;
-    final fg = selected ? Colors.white : C2.textMain;
+    final bg = selected ? AppColorsJ.main3 : Colors.white;
+    final fg = selected ? Colors.white : AppColorsJ.black;
 
     return Material(
       color: Colors.transparent,
@@ -582,7 +647,7 @@ class _EmotionChipFixed extends StatelessWidget {
           decoration: BoxDecoration(
             color: bg,
             borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: C2.chipStroke),
+            border: Border.all(color: AppColorsJ.main2),
           ),
           child: FittedBox(
             fit: BoxFit.scaleDown,
@@ -618,7 +683,7 @@ class _FieldLabel extends StatelessWidget {
     return Text(
       text,
       style:
-          const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: C2.textMain),
+          const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColorsJ.black),
     );
   }
 }
@@ -641,9 +706,9 @@ class _InputBox extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12),
       alignment: Alignment.centerLeft,
       decoration: BoxDecoration(
-        color: C2.surface,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: C2.chipStroke),
+        border: Border.all(color: AppColorsJ.main2),
       ),
       child: TextField(
         controller: controller,
@@ -651,14 +716,13 @@ class _InputBox extends StatelessWidget {
         decoration: const InputDecoration(
           border: InputBorder.none,
           isCollapsed: true,
-          hintStyle: TextStyle(color: C2.textSub),
+          hintStyle: TextStyle(color: AppColorsJ.grayText),
         ).copyWith(hintText: hint),
       ),
     );
   }
 }
 
-/// 이미지 미리보기
 class _ImagePreview extends StatelessWidget {
   const _ImagePreview({required this.path, required this.onClear});
 
@@ -698,7 +762,7 @@ class _ImagePreview extends StatelessWidget {
   }
 }
 
-/// “공간을 함께 저장해보세요” — 329×130(오버플로우 해결)
+/// “공간을 함께 저장해보세요” — 329×130
 class _GhostImagePicker extends StatelessWidget {
   const _GhostImagePicker({this.onCameraTap, this.onGalleryTap});
 
@@ -708,41 +772,37 @@ class _GhostImagePicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: double.infinity, // 화면 너비에 맞게 확장
+      width: double.infinity,
       height: 130,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(8),
         child: Container(
           decoration: BoxDecoration(
-            color: const Color(0xFFEDEFFF),
-            border: Border.all(color: C2.chipStroke),
+            color: AppColorsJ.main2,
+            border: Border.all(color: AppColorsJ.gray3Normal, width: 1),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Column( // 텍스트와 버튼 그룹 전체를 세로 중앙에 배치
-            mainAxisAlignment: MainAxisAlignment.center,
+          padding: const EdgeInsets.fromLTRB(16, 36, 16, 12),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const Text(
                 '공간을 함께 저장해보세요',
-                style: TextStyle(
-                  color: C2.textMain,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 16,
-                ),
                 textAlign: TextAlign.center,
+                style: AppTextStyles.textR,
               ),
-              const SizedBox(height: 8), // 텍스트와 버튼 사이의 간격 유지
+              const SizedBox(height: 6),
               Row(
                 mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   _GhostIconBtn(
                     assetPath: 'assets/fonts/icons/mdi_camera.svg',
-                    label: '카메라',
                     onTap: onCameraTap,
                   ),
-                  const SizedBox(width: 20),
+                  const SizedBox(width: 6),
                   _GhostIconBtn(
                     assetPath: 'assets/fonts/icons/gallery.svg',
-                    label: '갤러리',
                     onTap: onGalleryTap,
                   ),
                 ],
@@ -756,24 +816,36 @@ class _GhostImagePicker extends StatelessWidget {
 }
 
 class _GhostIconBtn extends StatelessWidget {
-  const _GhostIconBtn({required this.assetPath, required this.label, this.onTap});
+  const _GhostIconBtn({
+    required this.assetPath,
+    this.onTap,
+    this.size = 24,
+    this.hitSize = 44,
+    this.semanticLabel,
+  });
 
   final String assetPath;
-  final String label;
   final VoidCallback? onTap;
+  final double size;
+  final double hitSize;
+  final String? semanticLabel;
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      customBorder: const CircleBorder(),
       onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: SvgPicture.asset(
-          assetPath,
-          width: 24,
-          height: 24,
-          colorFilter: const ColorFilter.mode(C2.primaryDeep, BlendMode.srcIn),
+      borderRadius: BorderRadius.circular(8),
+      child: SizedBox.square(
+        dimension: hitSize,
+        child: Center(
+          child: SvgPicture.asset(
+            assetPath,
+            width: size,
+            height: size,
+            fit: BoxFit.contain,
+            alignment: Alignment.center,
+            semanticsLabel: semanticLabel,
+          ),
         ),
       ),
     );

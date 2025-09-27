@@ -21,19 +21,13 @@ import 'package:moods/features/record/widget/widget.dart';
 
 // 공통 스타일/색
 import 'package:moods/common/constants/text_styles.dart';
-import 'package:moods/common/constants/colors.dart';
+import 'package:moods/common/constants/colors_j.dart';
 
 // ============================================================================
 // 1) Constants
 // ============================================================================
 const double _kFont16 = 16;
 const double _kLH160 = 1.6;
-
-const _kTextMain = Color(0xFF1B1C20);
-const _kTextSub = Color(0xFF9094A9);
-
-const _kChipFillSelected = Color(0xFFA7B3F1);
-const _kChipStroke = Color(0xFFE8EBF8);
 
 // 라벨 목록 (아늑한 ↔ 조용한 나란히) — 사용처 유지
 const List<String> _moodTags = [
@@ -236,7 +230,7 @@ class _RecordTimerScreenState extends ConsumerState<RecordTimerScreen> {
     }
 
     // 시안 색상
-    const cardColor = Color(0xFFA7B3F1);
+    const cardColor = AppColorsJ.main3;
 
     final Color timeColor = hasImage
         ? (_wallIsDark == null
@@ -252,7 +246,7 @@ class _RecordTimerScreenState extends ConsumerState<RecordTimerScreen> {
     );
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFF),
+      backgroundColor: AppColorsJ.main1,
       body: Stack(
         children: [
           SafeArea(
@@ -289,14 +283,7 @@ class _RecordTimerScreenState extends ConsumerState<RecordTimerScreen> {
                         Text(
                           _fmt(st.elapsed),
                           textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontFamily: 'Pretendard',
-                            fontWeight: FontWeight.w500,
-                            fontSize: 50,
-                            height: 1.30,
-                            letterSpacing: -0.1,
-                            color: timeColor,
-                          ),
+                          style: AppTextStyles.time.copyWith(color: timeColor),
                         ),
                         Positioned(
                           bottom: 20,
@@ -306,8 +293,8 @@ class _RecordTimerScreenState extends ConsumerState<RecordTimerScreen> {
                                 size: 54,
                                 iconSize: 22,
                                 icon: Icons.close,
-                                bg: const Color(0xFFFFFFFF),
-                                iconColor: const Color(0xFF4558C1),
+                                bg: AppColorsJ.white,
+                                iconColor: AppColorsJ.main5,
                                 onTap: _onClose,
                               ),
                               const SizedBox(width: 10),
@@ -316,8 +303,8 @@ class _RecordTimerScreenState extends ConsumerState<RecordTimerScreen> {
                                 iconSize: 22,
                                 icon:
                                     st.isRunning ? Icons.pause : Icons.play_arrow,
-                                bg: const Color(0xFF4558C1),
-                                iconColor: const Color(0xFFFFFFFF),
+                                bg: AppColorsJ.main4,
+                                iconColor: AppColorsJ.white,
                                 onTap: () => st.isRunning
                                     ? ctrl.pause(context: context)
                                     : ctrl.resume(context: context),
@@ -346,7 +333,7 @@ class _RecordTimerScreenState extends ConsumerState<RecordTimerScreen> {
                         maxChildSize: 1.00,
                         builder: (_, scroll) => Container(
                           decoration: const BoxDecoration(
-                            color: Color(0xFFF9FAFF),
+                            color: AppColorsJ.main1,
                             borderRadius:
                                 BorderRadius.vertical(top: Radius.circular(16)),
                           ),
@@ -358,21 +345,12 @@ class _RecordTimerScreenState extends ConsumerState<RecordTimerScreen> {
                               // ---- 공간 무드 -----------------------------------
                               const Text(
                                 '공간 무드',
-                                style: TextStyle(
-                                  fontSize: _kFont16,
-                                  height: _kLH160,
-                                  fontWeight: FontWeight.w700,
-                                  color: _kTextMain,
-                                ),
+                                style: AppTextStyles.textSbEmphasis,
                               ),
                               const SizedBox(height: 4),
                               const Text(
                                 '공부하는 공간이 가지고 있는 분위기와 느낌을 선택해주세요.',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  height: 1.6,
-                                  color: _kTextSub,
-                                ),
+                                style: AppTextStyles.small,
                               ),
                               const SizedBox(height: 16),
 
@@ -387,12 +365,7 @@ class _RecordTimerScreenState extends ConsumerState<RecordTimerScreen> {
                               // ---- 오늘 목표 -----------------------------------
                               const Text(
                                 '오늘 목표',
-                                style: TextStyle(
-                                  fontSize: _kFont16,
-                                  height: _kLH160,
-                                  fontWeight: FontWeight.w700,
-                                  color: _kTextMain,
-                                ),
+                                style: AppTextStyles.textSbEmphasis,
                               ),
                               const SizedBox(height: 12),
 
@@ -442,13 +415,13 @@ class _RecordTimerScreenState extends ConsumerState<RecordTimerScreen> {
                                     height: 36,
                                     alignment: Alignment.center,
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFFEFF1FA),
+                                      color: AppColorsJ.main2,
                                       borderRadius: BorderRadius.circular(10),
                                     ),
                                     child: const Icon(
                                       Icons.add,
                                       size: 26,
-                                      color: Color(0xFF6B6BE5),
+                                      color: AppColorsJ.main5,
                                     ),
                                   ),
                                 ),
@@ -498,6 +471,7 @@ class _GoalInputRow extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
+          // placeholder 줄은 토글 비활성(디자인 고정)
           const ToggleSvg(active: false, disabled: true, size: 28),
           const SizedBox(width: 12),
           Expanded(
@@ -505,18 +479,33 @@ class _GoalInputRow extends StatelessWidget {
               height: 30,
               alignment: Alignment.centerLeft,
               padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
+
+              // ✅ 테두리/라운드, 위 항목과 동일
+              decoration: const ShapeDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(8)),
+                  side: BorderSide(
+                    color: AppColorsJ.gray3Normal, // 기본 연회색 테두리
+                    width: 1,
+                  ),
+                ),
               ),
+
               child: TextField(
                 controller: controller,
-                style: const TextStyle(fontSize: _kFont16, height: _kLH160),
+
+                style: AppTextStyles.textR,
+
                 textInputAction: TextInputAction.done,
-                decoration: const InputDecoration(
+                textAlignVertical: TextAlignVertical.center,
+
+                decoration: InputDecoration(
                   hintText: '목표 입력',
+                  hintStyle: AppTextStyles.textR.copyWith(color: AppColorsJ.gray5),
                   border: InputBorder.none,
                   isCollapsed: true,
+                  contentPadding: EdgeInsets.zero,
                 ),
                 onSubmitted: onSubmitted,
               ),
@@ -541,9 +530,9 @@ class _Confirm extends StatelessWidget {
     required this.cancelText,
   });
 
-  static const _bg    = Color(0xFFF2F4FF);  // 다이얼로그 배경(연보라)
-  static const _yesBg = Color(0xFFA7B3F1);  // 네 버튼 배경
-  static const _noBg  = Color(0xFFB5B9C3);  // 아니요 버튼 배경
+  static const _bg    = AppColorsJ.gray2;
+  static const _yesBg = AppColorsJ.main3;
+  static const _noBg  = AppColorsJ.gray4;
 
   @override
   Widget build(BuildContext context) {
@@ -561,7 +550,7 @@ class _Confirm extends StatelessWidget {
             Text(
               title,
               textAlign: TextAlign.center,
-              style: AppTextStyles.subtitle.copyWith(color: AppColors.black),
+              style: AppTextStyles.subtitle,
             ),
             const SizedBox(height: 22),
             Row(
@@ -655,8 +644,8 @@ class _Alert extends StatelessWidget {
     required this.okText,
   });
 
-  static const _bg    = Color(0xFFF2F4FF);
-  static const _yesBg = Color(0xFFA7B3F1); // 확인 버튼 = 네 버튼색
+  static const _bg    = AppColorsJ.gray2;
+  static const _yesBg = AppColorsJ.main3; // 확인 버튼 = 네 버튼색
 
   @override
   Widget build(BuildContext context) {
@@ -673,13 +662,13 @@ class _Alert extends StatelessWidget {
             Text(
               title,
               textAlign: TextAlign.center,
-              style: AppTextStyles.subtitle, // 20px
+              style: AppTextStyles.subtitle.copyWith(color: AppColorsJ.black), // 20px
             ),
             const SizedBox(height: 10),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: AppTextStyles.caption, // 14px 회색
+              style: AppTextStyles.caption.copyWith(color: AppColorsJ.gray6), // 14px 회색
             ),
             const SizedBox(height: 18),
             SizedBox(
@@ -697,7 +686,7 @@ class _Alert extends StatelessWidget {
                 onPressed: () => Navigator.pop(context),
                 child: Text(
                   okText,
-                  style: AppTextStyles.bodyBold.copyWith(color: Colors.white),
+                  style: AppTextStyles.bodyBold.copyWith(color: AppColorsJ.white),
                 ),
               ),
             ),

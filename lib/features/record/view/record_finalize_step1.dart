@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:moods/common/constants/text_styles.dart';
+import 'package:moods/common/constants/colors_j.dart';
 import 'package:moods/features/record/controller/record_controller.dart';
 import 'package:moods/features/record/widget/widget.dart';
 import 'record_finalize_step2.dart' show FinalizeStep2Screen;
@@ -19,29 +21,6 @@ const double kHeaderIconStroke = 4.0;  // 체크 선 굵기 (두껍게!)
 const double kHeaderGap        = 8;    // 체크와 '오늘 공부' 텍스트 간격
 const double kTitleToCardGap   = 24;   // 제목 아래 카드까지 간격
 const double kBodyTopPadding   = 28;   // 앱바와 헤더 사이(조금 더 아래로)
-
-// ============================================================================
-// 2) Color & Style Tokens
-// ============================================================================
-class C {
-  static const bg           = Color(0xFFE8EBF8);
-  static const headerBg     = Color(0xFFA7B3F1);
-  static const surface      = Colors.white;
-  static const chipStroke   = Color(0xFFE5E7F4);
-  static const primarySoft  = Color(0xFFA7B3F1);
-  static const primaryDeep  = Color(0xFFA7B3F1);
-  static const textMain     = Color(0xFF111318);
-  static const textSub      = Color(0xFF3B3F55);
-  static const textWeak     = Color(0xFFB7BED6);
-  static const disabledFill = Color(0xFFF0F2F8);
-  static const disabledTxt  = Color(0xFFB9C0D6);
-}
-
-class S {
-  static const r8  = Radius.circular(8);
-  static const r12 = Radius.circular(12);
-  static const r16 = Radius.circular(16);
-}
 
 // ============================================================================
 // 3) (Optional) 라벨/태그 상수  *원본 그대로 유지*
@@ -87,17 +66,20 @@ class FinalizeStep1Screen extends ConsumerWidget {
     final canNext = st.selectedMoods.isNotEmpty;
 
     return Scaffold(
-      backgroundColor: C.bg,
+      backgroundColor: AppColorsJ.main1,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
+        shape: const Border(
+          bottom: BorderSide(color: AppColorsJ.main2, width: 1),
+        ),
         centerTitle: true,
         title: const Text(
           '기록하기',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: C.textMain),
+          style: AppTextStyles.subtitle,
         ),
         leading: IconButton(
-          icon: const Icon(Icons.close, color: C.textMain),
+          icon: const Icon(Icons.close, color: AppColorsJ.black),
           onPressed: () async {
             final quit = await _showQuitConfirmDialog(context);
             if (quit == true) {
@@ -119,24 +101,15 @@ class FinalizeStep1Screen extends ConsumerWidget {
                 _HeaderBoldCheck(),
                 SizedBox(width: kHeaderGap),
                 Text(
-                  '오늘 공부',
-                  style: TextStyle(
-                    fontSize: 26,
-                    height: 1.3,
-                    fontWeight: FontWeight.w800,
-                    color: C.textMain,
-                  ),
+                  '오늘 공부', style: AppTextStyles.title,
                 ),
               ],
             ),
             const SizedBox(height: 2),
-            const Padding(
-              padding: EdgeInsets.only(left: kHeaderIconSize + kHeaderGap),
-              child: Text(
-                '다음 정보가 맞나요?',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: C.textSub),
-              ),
-            ),
+            Padding(
+                padding: const EdgeInsets.only(left: kHeaderIconSize + kHeaderGap),
+                child: Text('다음 정보가 맞나요?',
+                    style: AppTextStyles.small.copyWith(color: AppColorsJ.black.withOpacity(0.6)))),
 
             const SizedBox(height: kTitleToCardGap),
 
@@ -144,7 +117,7 @@ class FinalizeStep1Screen extends ConsumerWidget {
             Container(
               width: double.infinity,
               decoration: BoxDecoration(
-                color: C.surface,
+                color: AppColorsJ.main2,
                 borderRadius: BorderRadius.circular(16),
               ),
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
@@ -163,10 +136,7 @@ class FinalizeStep1Screen extends ConsumerWidget {
             const SizedBox(height: 40),
 
             // ── 오늘 목표 ─────────────────────────────────────────────────────
-            const Text(
-              '오늘 목표',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: C.textMain),
-            ),
+            const Text('오늘 목표', style: AppTextStyles.textSbEmphasis),
             const SizedBox(height: 12),
             ...st.goals.asMap().entries.map((e) {
               final i = e.key;
@@ -184,10 +154,7 @@ class FinalizeStep1Screen extends ConsumerWidget {
             const SizedBox(height: 40),
 
             // ── 공간 무드 ─────────────────────────────────────────────────────
-            const Text(
-              '공간 무드',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: C.textMain),
-            ),
+            const Text('공간 무드', style: AppTextStyles.textSbEmphasis),
             const SizedBox(height: 14),
             MoodChipsFixedGrid(
               selected: st.selectedMoods,
@@ -219,17 +186,16 @@ class FinalizeStep1Screen extends ConsumerWidget {
                 elevation: const MaterialStatePropertyAll(0),
                 backgroundColor: MaterialStateProperty.resolveWith((states) {
                   if (states.contains(MaterialState.disabled)) {
-                    return C.primarySoft.withOpacity(0.35);
+                    return AppColorsJ.gray3Normal;
                   }
-                  return C.primaryDeep;
+                  return AppColorsJ.main3;
                 }),
                 shape: MaterialStatePropertyAll(
                   RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                 ),
               ),
-              child: const Text(
-                '다음',
-                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800),
+              child: Text(
+                '다음', style: AppTextStyles.textSbEmphasis.copyWith(color: Colors.white),
               ),
             ),
           ),
@@ -254,16 +220,10 @@ Future<bool?> _showQuitConfirmDialog(BuildContext context) {
 class _QuitDialog extends StatelessWidget {
   const _QuitDialog();
 
-  static const Color _cardBg     = Color(0xFFF6F1FA); // 연보라 카드
-  static const Color _titleColor = C.textMain;
-  static const Color _subColor   = C.textSub;
-  static const Color _yesBg      = Color(0xFFA7B3F1); // 네(저장)
-  static const Color _noBg       = Color(0xFFB5B9C3); // 아니요(나감)
-
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      backgroundColor: _cardBg,
+      backgroundColor: AppColorsJ.gray2,
       elevation: 0,
       insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
@@ -272,33 +232,18 @@ class _QuitDialog extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              '지금 나가면\n기록이 저장되지 않아요',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 18,
-                height: 1.35,
-                fontWeight: FontWeight.w800,
-                color: _titleColor,
-              ),
-            ),
+            const Text('지금 나가면\n기록이 저장되지 않아요',
+                textAlign: TextAlign.center, style: AppTextStyles.subtitle),
             const SizedBox(height: 6),
-            const Text(
-              '기록을 저장하시겠어요?',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                height: 1.35,
-                fontWeight: FontWeight.w500,
-                color: _subColor,
-              ),
-            ),
+            Text('기록을 저장하시겠어요?',
+                textAlign: TextAlign.center, // caption 스타일에 검정색 적용
+                style: AppTextStyles.caption.copyWith(color: AppColorsJ.black)),
             const SizedBox(height: 16),
             Row(
-              children: const [
+              children: [
                 Expanded(
                   child: _DialogBigButton(
-                    bg: _yesBg,
+                    bg: AppColorsJ.main3,
                     top: '네',
                     bottom: '기록을 저장할게요',
                     isQuit: false,
@@ -307,7 +252,7 @@ class _QuitDialog extends StatelessWidget {
                 SizedBox(width: 12),
                 Expanded(
                   child: _DialogBigButton(
-                    bg: _noBg,
+                    bg: AppColorsJ.gray4,
                     top: '아니요',
                     bottom: '나갈게요',
                     isQuit: true,
@@ -351,26 +296,15 @@ class _DialogBigButton extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              top,
+              top, // bodyBold 스타일에 흰색 적용
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 16,
-                height: 1.0,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-              ),
+              style: AppTextStyles.bodyBold.copyWith(color: Colors.white),
             ),
             const SizedBox(height: 2),
-            Text(
-              bottom,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 12,
-                height: 1.0,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
-            ),
+            Text(bottom,
+                textAlign: TextAlign.center,
+                style: AppTextStyles.small
+                    .copyWith(color: Colors.white)), // small 스타일에 흰색 적용
           ],
         ),
       ),
@@ -391,7 +325,7 @@ class _HeaderBoldCheck extends StatelessWidget {
       height: kHeaderIconSize,
       child: CustomPaint(
         painter: _BoldCheckPainter(
-          color: C.textMain,
+          color: AppColorsJ.black,
           stroke: kHeaderIconStroke,
         ),
       ),
@@ -459,26 +393,13 @@ class _SummaryRowPlain extends ConsumerWidget {
           width: 92,
           child: Text(
             label,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: C.textMain,
-            ),
+            style: AppTextStyles.smallSb,
           ),
         ),
         const SizedBox(width: 8),
         Expanded(
           child: Text(
-            value,
-            textAlign: TextAlign.left,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w400,
-              height: 1.1,
-              color: C.textMain,
-            ),
+            value, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.smallR12,
           ),
         ),
       ],

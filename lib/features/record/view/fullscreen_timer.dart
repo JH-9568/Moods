@@ -1,6 +1,8 @@
 // lib/features/record/view/fullscreen_timer.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:moods/common/constants/colors_j.dart';
+import 'package:moods/features/record/view/record_finalize_step1.dart';
 import 'package:moods/features/record/controller/record_controller.dart';
 
 class FullscreenTimer extends ConsumerWidget {
@@ -13,11 +15,13 @@ class FullscreenTimer extends ConsumerWidget {
     return '$h:$m:$s';
   }
 
-  Future<void> _finishFlow(BuildContext context, WidgetRef ref) async {
+  Future<void> _finishFlow(BuildContext context, WidgetRef ref) async { // record_timer_screen의 _onClose 로직과 통합
     final st = ref.read(recordControllerProvider);
     if (st.selectedMoods.isEmpty) {
       await showDialog(
         context: context,
+        barrierDismissible: false,
+        barrierColor: Colors.black.withOpacity(0.45),
         builder: (_) => const _Alert(
           title: '잠시만요!',
           message: '공간 무드를 선택해주세요',
@@ -26,25 +30,30 @@ class FullscreenTimer extends ConsumerWidget {
       );
       return;
     }
+
     final yes = await showDialog<bool>(
       context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black.withOpacity(0.45),
       builder: (_) => const _Confirm(
         title: '공부를 끝내시겠어요?',
         okText: '네\n기록을 저장할래요',
         cancelText: '아니요\n이어서 할게요',
       ),
     );
+
     if (yes == true) {
       final ctrl = ref.read(recordControllerProvider.notifier);
-      await ctrl.finish();
-      await ctrl.exportToRecord(); // Controller가 상태를 알고 있으므로 파라미터 필요 없음
-
-      if (!context.mounted) return;
-      // 풀스크린 닫고, 이전 화면(RecordTimerScreen)도 닫기
-      Navigator.of(context).pop();
-      if (Navigator.of(context).canPop()) {
-        Navigator.of(context).pop();
+      try {
+        await ctrl.finish();
+      } catch (e) {
+        final msg = e.toString();
+        if (!(msg.contains('이미 세션이 종료') || msg.toLowerCase().contains('already'))) {
+          debugPrint('finish() error ignored: $e');
+        }
       }
+      if (!context.mounted) return;
+      await showRecordFinalizeFlow(context);
     }
   }
 
@@ -105,19 +114,19 @@ class FullscreenTimer extends ConsumerWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _RoundCircleButton(
+                    _RoundCircleButton( // record_timer_screen과 동일한 디자인/기능
                       icon: Icons.close,
-                      bg: Colors.white,
-                      iconColor: const Color(0xFF4558C1),
+                      bg: AppColorsJ.white,
+                      iconColor: AppColorsJ.main5,
                       onTap: () => _finishFlow(context, ref),
                       size: 54,
                       iconSize: 22,
                     ),
                     const SizedBox(width: 16),
-                    _RoundCircleButton(
+                    _RoundCircleButton( // record_timer_screen과 동일한 디자인/기능
                       icon: st.isRunning ? Icons.pause : Icons.play_arrow,
-                      bg: const Color(0xFF4558C1),
-                      iconColor: Colors.white,
+                      bg: AppColorsJ.main4,
+                      iconColor: AppColorsJ.white,
                       onTap: () async {
                         if (st.isRunning) {
                           await ctrl.pause(context: context);
@@ -170,7 +179,7 @@ class _RoundCircleButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: bg,
           borderRadius: BorderRadius.circular(size / 2),
-          boxShadow: const [BoxShadow(blurRadius: 10, color: Colors.black45)],
+          boxShadow: const [BoxShadow(blurRadius: 8, color: Colors.black26)],
         ),
         alignment: Alignment.center,
         child: Icon(icon, color: iconColor, size: iconSize),
@@ -187,16 +196,41 @@ class _Confirm extends StatelessWidget {
       {required this.title, required this.okText, required this.cancelText});
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(title),
-      actions: [
-        TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(cancelText, textAlign: TextAlign.center)),
-        FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(okText, textAlign: TextAlign.center)),
-      ],
+    // record_timer_screen의 _Confirm 위젯을 가져와서 사용
+    return Dialog(
+      backgroundColor: AppColorsJ.gray2,
+      elevation: 0,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 22, 24, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 22),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: AppColorsJ.main3, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), padding: const EdgeInsets.symmetric(vertical: 8), minimumSize: const Size(0, 58)),
+                    onPressed: () => Navigator.pop(context, true),
+                    child: Text(okText, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, height: 1.3)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: AppColorsJ.gray4, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), padding: const EdgeInsets.symmetric(vertical: 8), minimumSize: const Size(0, 58)),
+                    onPressed: () => Navigator.pop(context, false),
+                    child: Text(cancelText, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, height: 1.3)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -208,12 +242,25 @@ class _Alert extends StatelessWidget {
   const _Alert({required this.title, required this.message, required this.okText});
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(title),
-      content: Text(message),
-      actions: [
-        FilledButton(onPressed: () => Navigator.pop(context), child: Text(okText))
-      ],
+    // record_timer_screen의 _Alert 위젯을 가져와서 사용
+    return Dialog(
+      backgroundColor: AppColorsJ.gray2,
+      elevation: 0,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 22, 24, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 10),
+            Text(message, textAlign: TextAlign.center, style: const TextStyle(fontSize: 14, color: AppColorsJ.gray6)),
+            const SizedBox(height: 18),
+            SizedBox(height: 50, width: double.infinity, child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: AppColorsJ.main3, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))), onPressed: () => Navigator.pop(context), child: Text(okText, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)))),
+          ],
+        ),
+      ),
     );
   }
 }

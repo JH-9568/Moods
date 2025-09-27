@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:moods/features/auth/controller/auth_controller.dart';
+import 'package:moods/common/constants/colors_j.dart';
 
 class StartScreen extends ConsumerStatefulWidget {
   const StartScreen({super.key});
@@ -53,22 +54,22 @@ class _StartScreenState extends ConsumerState<StartScreen> {
   InputDecoration _fieldDeco(String hint) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: const TextStyle(color: Color(0xFFAFAFAF), fontWeight: FontWeight.w400),
+      hintStyle: const TextStyle(color: AppColorsJ.grayText, fontWeight: FontWeight.w400),
       filled: true,
-      fillColor: Colors.white,
+      fillColor: AppColorsJ.white,
       isDense: true,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFEEF1FF), width: 1),
+        borderSide: const BorderSide(color: AppColorsJ.gray2, width: 1),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFEEF1FF), width: 1),
+        borderSide: const BorderSide(color: AppColorsJ.gray2, width: 1),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFEEF1FF), width: 2),
+        borderSide: const BorderSide(color: AppColorsJ.gray2, width: 2),
       ),
     );
   }
@@ -78,7 +79,7 @@ class _StartScreenState extends ConsumerState<StartScreen> {
     final loginState = ref.watch(authControllerProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FC),
+      backgroundColor: AppColorsJ.main1,
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
@@ -93,13 +94,13 @@ class _StartScreenState extends ConsumerState<StartScreen> {
                     const Text(
                       'Welcome',
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: AppColorsJ.black),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
-                      'Moods',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 36, fontWeight: FontWeight.w800),
+                    SvgPicture.asset(
+                      'assets/fonts/icons/moodslogo.svg',
+                      width: 148,
+                      height: 70,
                     ),
                     const SizedBox(height: 32),
 
@@ -119,7 +120,7 @@ class _StartScreenState extends ConsumerState<StartScreen> {
                       child: ElevatedButton(
                         onPressed: loginState.isLoading ? null : _handleLogin,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFAEB5F2),
+                          backgroundColor: AppColorsJ.main3,
                           foregroundColor: Colors.white,
                           elevation: 0,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -144,12 +145,12 @@ class _StartScreenState extends ConsumerState<StartScreen> {
                         onPressed: () => context.go('/reset-password'),
                         style: TextButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                          foregroundColor: Colors.black,
+                          foregroundColor: AppColorsJ.black,
                           overlayColor: Colors.transparent,
                         ),
                         child: const Text(
                           '비밀번호 재설정',
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColorsJ.black),
                         ),
                       ),
                     ),
@@ -163,14 +164,14 @@ class _StartScreenState extends ConsumerState<StartScreen> {
                       child: ElevatedButton(
                         onPressed: () => context.push('/register'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFEDEFFE),
-                          foregroundColor: Colors.black,
+                          backgroundColor: AppColorsJ.main2,
+                          foregroundColor: AppColorsJ.black,
                           elevation: 0,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                         child: const Text(
                           '회원가입',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: AppColorsJ.black),
                         ),
                       ),
                     ),
@@ -183,7 +184,7 @@ class _StartScreenState extends ConsumerState<StartScreen> {
                         onPressed: loginState.isLoading ? null : _handleKakaoLogin,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFFFFE812),
-                          foregroundColor: Colors.black,
+                          foregroundColor: AppColorsJ.black,
                           elevation: 0,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
@@ -199,7 +200,7 @@ class _StartScreenState extends ConsumerState<StartScreen> {
                             const SizedBox(width: 10),
                             const Text(
                               '카카오로 시작하기',
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: AppColorsJ.black),
                             ),
                           ],
                         ),

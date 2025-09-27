@@ -1,26 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-
-/// 디자인 토큰(컴포넌트 내부 전용)
-class _RB {
-  static const primarySoft  = Color(0xFFA7B3F1);
-  static const surface      = Colors.white;
-  static const textMain     = Color(0xFF111318);
-  static const textWeak     = Color(0xFFB7BED6);
-  static const textSub      = Color(0xFF8C90A4);
-  static const disabledFill = Color(0xFFF0F2F8);
-  static const disabledTxt  = Color(0xFFB9C0D6);
-
-  //  칩 테두리(연한 회색)
-  static const chipStroke   = Color(0xFFE5E7F4);
-}
-
+import 'package:moods/common/constants/colors_j.dart';
+import 'package:moods/common/constants/text_styles.dart';
 
 class ToggleSvg extends StatelessWidget {
   final bool active;         // true=toggle_active, false=toggle_inactive
   final bool disabled;       // 탭 막기 + opacity 낮춤
   final VoidCallback? onTap;
   final double size;
+  final Color? ringColor;    // 비활성 링 색상 오버라이드
+  final Color? plateColor;   // 체크 아이콘 배경색 오버라이드
 
   const ToggleSvg({
     super.key,
@@ -28,13 +17,26 @@ class ToggleSvg extends StatelessWidget {
     required this.disabled,
     this.onTap,
     this.size = 28,
+    this.ringColor,
+    this.plateColor,
   });
 
   @override
   Widget build(BuildContext context) {
-    final asset = active
-        ? 'assets/fonts/icons/toggle_active.svg'
-        : 'assets/fonts/icons/toggle_inactive.svg';
+    // active일 땐 항상 active.svg
+    // inactive일 땐 ringColor가 있으면 inactive.svg에 색상 오버라이드
+    final String asset;
+    final ColorFilter? colorFilter;
+
+    if (active) {
+      asset = 'assets/fonts/icons/toggle_active.svg';
+      colorFilter = null;
+    } else {
+      asset = 'assets/fonts/icons/toggle_inactive.svg';
+      colorFilter = ringColor != null
+          ? ColorFilter.mode(ringColor!, BlendMode.srcIn)
+          : null;
+    }
 
     return InkWell(
       onTap: disabled ? null : onTap,
@@ -45,7 +47,12 @@ class ToggleSvg extends StatelessWidget {
           width: size,
           height: size,
           child: Center(
-            child: SvgPicture.asset(asset, width: size - 4, height: size - 4),
+            child: SvgPicture.asset(
+              asset,
+              width: size - 4,
+              height: size - 4,
+              colorFilter: colorFilter,
+            ),
           ),
         ),
       ),
@@ -72,36 +79,58 @@ class GoalPillRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color pillBg = disabled ? _RB.disabledFill : (done ? _RB.primarySoft : _RB.surface);
-    final Color txt    = disabled ? _RB.disabledTxt  : (done ? Colors.white : _RB.textMain);
+    final bool isPlaceholder = text.trim().isEmpty;
+
+    // ✅ 스타일 잠금은 "진짜 disabled"일 때만. placeholder는 기본 스타일 유지
+    final bool lockStyle = disabled && !isPlaceholder;
+
+    // ✅ 배경 통일: 완료만 채움, 나머진 흰색
+    final Color pillBg = done ? AppColorsJ.main3 : Colors.white;
+
+    // ✅ 테두리 통일: 완료=없음 / 진짜 disabled=Main2 굵게 / 그 외(placeholder 포함)=연회색
+    final BorderSide side = done
+        ? const BorderSide(color: Colors.transparent, width: 0)
+        : (lockStyle
+            ? const BorderSide(color: AppColorsJ.main2, width: 2)
+            : const BorderSide(color: AppColorsJ.gray3Normal, width: 1));
+
+    // ✅ 텍스트 크기/두께 통일 + placeholder는 연회색
+    final Color txtColor =
+        done ? Colors.white : (isPlaceholder ? AppColorsJ.gray5 : AppColorsJ.black);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(
         children: [
+          // 토글은 placeholder도 비활성, 대신 링은 중립색으로
           ToggleSvg(
             active: done,
-            disabled: disabled,
+            disabled: disabled || isPlaceholder,
             onTap: () => onToggle(!done),
+            ringColor: isPlaceholder ? AppColorsJ.gray3Normal : null,
+            plateColor: Colors.white,
           ),
           const SizedBox(width: 10),
           Expanded(
             child: InkWell(
-              onTap: disabled ? null : () => onToggle(!done),
+              onTap: (disabled || isPlaceholder) ? null : () => onToggle(!done),
               borderRadius: BorderRadius.circular(8),
               child: Container(
                 height: 30,
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 alignment: Alignment.centerLeft,
-                decoration: BoxDecoration(
+                decoration: ShapeDecoration(
                   color: pillBg,
-                  borderRadius: const BorderRadius.all(Radius.circular(8)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: const BorderRadius.all(Radius.circular(8)),
+                    side: side,
+                  ),
                 ),
                 child: Text(
-                  text.isEmpty ? '목표 입력' : text,
+                  isPlaceholder ? '목표 입력' : text,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: txt),
+                  style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w700, color: txtColor),
                 ),
               ),
             ),
@@ -129,8 +158,8 @@ class _MoodChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color fill = selected ? _RB.primarySoft : Colors.white;
-    final Color fg   = selected ? Colors.white : _RB.textMain;
+    final Color fill = selected ? AppColorsJ.main3 : Colors.white;
+    final Color fg   = selected ? Colors.white : AppColorsJ.black;
 
     // Ink + ShapeDecoration을 써야 테두리(stroke)와 잉크 리플이 동시에 깔끔하게 나옴
     return Material(
@@ -140,7 +169,7 @@ class _MoodChip extends StatelessWidget {
         decoration: ShapeDecoration(
           color: fill,
           shape: const StadiumBorder(
-            side: BorderSide(color: _RB.chipStroke, width: 1), // ✅ 연한 회색 테두리
+            side: BorderSide(color: AppColorsJ.main2, width: 1),
           ),
         ),
         child: InkWell(
@@ -150,8 +179,8 @@ class _MoodChip extends StatelessWidget {
             height: 34,
             padding: const EdgeInsets.symmetric(horizontal: 14),
             alignment: Alignment.center,
-            //  텍스트 두께 살짝 낮춤(너무 볼드 X)
-            child: Text(label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: fg)),
+            child: Text(label,
+                style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w500, color: fg)),
           ),
         ),
       ),
