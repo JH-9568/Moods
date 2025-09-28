@@ -151,7 +151,7 @@ class _FinalizeStep2ScreenState extends ConsumerState<FinalizeStep2Screen> {
 }
 
 
-  Future<void> _submit() async {
+Future<void> _submit() async {
   setState(() => _submitting = true);
   try {
     // 공간 필수
@@ -162,13 +162,45 @@ class _FinalizeStep2ScreenState extends ConsumerState<FinalizeStep2Screen> {
       return;
     }
 
+    // ─────────────────────────────────────────────
+    // 공간특징 칩 → API 필드로 매핑
+    // ─────────────────────────────────────────────
+    final bool power = _selectedPlaceTags.contains('콘센트 많음');
+
+    // 와이파이 퀄리티가 좋음이면 스코어 4로 가정(스펙에 맞게 조정 가능)
+    final int? wifiScore =
+        _selectedPlaceTags.contains('와이파이 퀄리티 좋음') ? 4 : null;
+
+    // 소음: 낮음=1, 보통=2, 높음=3 (둘 다 선택되면 충돌 → 2로 강제)
+    int? noiseLevel;
+    final bool noiseLow = _selectedPlaceTags.contains('소음 낮음');
+    final bool noiseHigh = _selectedPlaceTags.contains('소음 높음');
+    if (noiseLow && !noiseHigh) {
+      noiseLevel = 1;
+    } else if (!noiseLow && noiseHigh) {
+      noiseLevel = 3;
+    } else if (noiseLow && noiseHigh) {
+      noiseLevel = 2; // 충돌 시 보통 처리
+    } else {
+      noiseLevel = null; // 미선택이면 서버 기본값 사용
+    }
+
+    // 혼잡도: 자리 많음이면 여유=1 (그 외 미선택이면 null)
+    final int? crowdness =
+        _selectedPlaceTags.contains('자리 많음') ? 1 : null;
+
     final notifier = ref.read(recordControllerProvider.notifier);
 
-    // 화면 메타 로컬 반영
+    // 화면 메타 로컬 반영 + 서버로 보낼 값
     notifier.applyFinalizeMeta(
       title: _titleCtrl.text.trim().isEmpty ? '공부 기록' : _titleCtrl.text.trim(),
-      emotionTagIds: _selectedEmotions.toList(),
+      emotionTagIds: _selectedEmotions.toList(), // 서버가 라벨 받는 스펙
       spaceId: _selectedSpaceId!,
+      // ↓↓↓ 공간특징 필드 추가
+      wifiScore: wifiScore,
+      noiseLevel: noiseLevel,
+      crowdness: crowdness,
+      power: power,
     );
 
     // 1) 기록 생성
@@ -191,8 +223,12 @@ class _FinalizeStep2ScreenState extends ConsumerState<FinalizeStep2Screen> {
       }
     }
 
-    // 4) 상세조회 값을 공용 파서로 그대로 사용해 미리보기
-    await showRecordCardPreviewFromRecordId(context, ref, recordId);
+    // 4) 현재 state 값으로 미리보기 (서버 재조회 대신)
+    final currentState = ref.read(recordControllerProvider);
+    // 공간 이름은 컨트롤러 state에 없으므로, 텍스트 필드에서 직접 가져옴
+    final spaceDetailForPreview = {'name': _spaceCtrl.text};
+    final cardData = RecordCardData.fromRecordState(currentState, spaceDetailForPreview);
+    await showRecordCardPreview(context, cardData);
 
   } catch (e) {
     if (mounted) {
@@ -203,6 +239,7 @@ class _FinalizeStep2ScreenState extends ConsumerState<FinalizeStep2Screen> {
     if (mounted) setState(() => _submitting = false);
   }
 }
+
 
   // ── UI builders (섹션별) ───────────────────────────────────────────────────
   Widget _sectionHeader() => const Column(

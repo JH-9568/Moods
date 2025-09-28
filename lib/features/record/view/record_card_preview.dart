@@ -7,6 +7,8 @@ import 'package:go_router/go_router.dart';
 import 'package:moods/common/constants/colors_j.dart';
 import 'package:moods/common/constants/text_styles.dart';
 import 'package:moods/features/record/controller/record_controller.dart';
+import 'package:moods/features/home/widget/study_count/study_count_controller.dart';
+import 'package:moods/features/home/widget/study_record/home_record_controller.dart';
 
 /// 감정 → 이모지 매핑
 const Map<String, String> _kEmotionEmoji = {
@@ -104,8 +106,22 @@ class RecordCardData {
       return mt.isNotEmpty ? mt : '무드 미정';
     })();
 
-    final tags = (_asList(space['tags']).isNotEmpty ? _asList(space['tags']) : _asList(rec['tags']))
+    final List<String> tags = (_asList(space['tags']).isNotEmpty ? _asList(space['tags']) : _asList(rec['tags']))
         .map((e) => e.toString()).toList();
+
+    // 공간 특징 필드를 UI 태그로 변환
+    final bool power = space['power'] == true || rec['power'] == true;
+    if (power) tags.add('콘센트 많음');
+
+    final int wifiScore = (space['wifi_score'] ?? rec['wifi_score'] ?? 0) is int ? (space['wifi_score'] ?? rec['wifi_score'] ?? 0) : 0;
+    if (wifiScore >= 4) tags.add('와이파이 퀄리티 좋음');
+
+    final int noiseLevel = (space['noise_level'] ?? rec['noise_level'] ?? 0) is int ? (space['noise_level'] ?? rec['noise_level'] ?? 0) : 0;
+    if (noiseLevel == 1) tags.add('소음 낮음');
+    if (noiseLevel == 3) tags.add('소음 높음');
+
+    final int crowdness = (space['crowdness'] ?? rec['crowdness'] ?? 0) is int ? (space['crowdness'] ?? rec['crowdness'] ?? 0) : 0;
+    if (crowdness == 1) tags.add('자리 많음');
 
     ImageProvider? background;
     final img = rec['image_url']?.toString();
@@ -125,6 +141,55 @@ class RecordCardData {
       background: background,
     );
   }
+
+  /// record controller의 state로부터 직접 생성
+  factory RecordCardData.fromRecordState(RecordState st, Map<String, dynamic> spaceDetail) {
+    List<String> _asList(dynamic v) => (v is List) ? List<String>.from(v.map((e) => e.toString())) : const [];
+
+    final title = st.title.trim();
+    final date = DateTime.now(); // finalize 시점은 현재
+    final focus = st.elapsed;
+    final total = focus;
+
+    final goalsDone = <String>[];
+    for (final g in st.goals) {
+      if (g.done) goalsDone.add(g.text);
+    }
+
+    final emotions = st.emotionTagIds;
+
+    final placeName = (spaceDetail['name']?.toString() ?? '').trim().isEmpty ? '미정' : spaceDetail['name'].toString();
+    final placeType = (spaceDetail['type']?.toString() ?? '').trim().isNotEmpty
+        ? spaceDetail['type'].toString()
+        : (_asList(spaceDetail['type_tags']).isNotEmpty ? _asList(spaceDetail['type_tags']).first.toString() : '공간');
+    final String placeMood = st.selectedMoods.join(', ');
+
+    final List<String> tags = [];
+    // state에 저장된 공간 특징 필드를 UI 태그로 변환
+    if (st.power == true) tags.add('콘센트 많음');
+    if ((st.wifiScore ?? 0) >= 4) tags.add('와이파이 퀄리티 좋음');
+    if (st.noiseLevel == 1) tags.add('소음 낮음');
+    if (st.noiseLevel == 3) tags.add('소음 높음');
+    if (st.crowdness == 1) tags.add('자리 많음');
+
+    ImageProvider? background;
+    // state에는 이미지 URL이 없으므로, 이 부분은 비워두거나 기본 이미지 사용
+    // (사진 업로드는 비동기이므로, 미리보기 시점에는 아직 URL이 없을 수 있음)
+
+    return RecordCardData(
+      date: date,
+      focusTime: focus,
+      totalTime: total,
+      title: title.isNotEmpty ? title : '공부 기록',
+      goalsDone: goalsDone,
+      moods: emotions,
+      placeMood: placeMood.isNotEmpty ? placeMood : '무드 미정',
+      placeName: placeName,
+      placeType: placeType,
+      tags: tags,
+      background: background,
+    );
+  }
 }
 
 // ───────────────────────────── Overlay ─────────────────────────────
@@ -134,7 +199,12 @@ Future<void> showRecordCardPreview(BuildContext context, RecordCardData data) {
     barrierDismissible: false,
     barrierColor: Colors.black.withOpacity(0.60),
     transitionDuration: const Duration(milliseconds: 160),
-    pageBuilder: (_, __, ___) => _RecordCardOverlay(data: data),
+    pageBuilder: (context, _, __) {
+      // Consumer를 사용하여 ref를 전달할 수 있도록 context를 감싸줍니다.
+      return Consumer(
+        builder: (context, ref, child) => _RecordCardOverlay(data: data, ref: ref),
+      );
+    },
   );
 }
 
@@ -148,21 +218,30 @@ Future<void> showRecordCardPreviewFromRecordId(
   await showRecordCardPreview(context, data);
 }
 
-class RecordCardPreviewScreen extends StatelessWidget {
+class RecordCardPreviewScreen extends ConsumerWidget {
   final RecordCardData data;
   const RecordCardPreviewScreen({super.key, required this.data});
 
   @override
-  Widget build(BuildContext context) {
-    return Material(color: Colors.black.withOpacity(0.60), child: _RecordCardOverlay(data: data));
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Material(color: Colors.black.withOpacity(0.60), child: _RecordCardOverlay(data: data, ref: ref));
   }
 }
 
-class _RecordCardOverlay extends StatelessWidget {
+class _RecordCardOverlay extends StatelessWidget { // StatelessWidget을 유지해도 동작하지만, 명시적으로 ref를 받기 위해 ConsumerWidget으로 변경하는 것이 좋습니다.
   final RecordCardData data;
-  const _RecordCardOverlay({required this.data});
+  final WidgetRef ref; // ref를 전달받습니다.
+  const _RecordCardOverlay({required this.data, required this.ref});
 
-  void _closeAndGoHome(BuildContext context) {
+  void _closeAndGoHome(BuildContext context, WidgetRef ref) {
+    // 데이터 갱신이 필요한 프로바이더들을 무효화합니다.
+    // 이렇게 하면 다음에 해당 프로바이더를 읽을 때 데이터가 새로고침됩니다.
+    ref.invalidate(studyCountControllerProvider);
+    ref.invalidate(homeRecordControllerProvider);
+    // myRankingControllerProvider가 있다면 아래와 같이 추가합니다.
+    // ref.invalidate(myRankingControllerProvider);
+
+    // 기존의 화면 이동 로직
     Navigator.of(context, rootNavigator: true).pop();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (context.mounted) GoRouter.of(context).go('/home');
@@ -177,7 +256,7 @@ class _RecordCardOverlay extends StatelessWidget {
         child: SizedBox(
           width: 329,
           height: 622,
-          child: _RecordCard(data: data, onConfirm: () => _closeAndGoHome(context)),
+          child: _RecordCard(data: data, onConfirm: () => _closeAndGoHome(context, ref)),
         ),
       ),
     );
