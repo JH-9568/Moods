@@ -1,6 +1,11 @@
-// lib/features/record/service/record_service.dart
 import 'dart:convert';
+import 'dart:io';
+
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
+import 'package:mime/mime.dart';
+import 'package:path/path.dart' as p;
+
 import 'package:moods/common/constants/api_constants.dart';
 
 class RecordService {
@@ -18,7 +23,6 @@ class RecordService {
 
   // ===== Sessions =====
 
-  // 1) 세션 시작
   Future<Map<String, dynamic>> startSession({
     required String moodId,
     required List<String> goals,
@@ -39,121 +43,165 @@ class RecordService {
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
 
-  // 2) 일시중지
   Future<Map<String, dynamic>> pauseSession() async {
-    final res = await client.get(_u('/study-sessions/pause'), headers: _jsonHeaders);
+    final res =
+        await client.get(_u('/study-sessions/pause'), headers: _jsonHeaders);
     if (res.statusCode ~/ 100 != 2) {
       throw Exception('세션 일시중지 실패: ${res.body}');
     }
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
 
-  // 3) 재개
   Future<Map<String, dynamic>> resumeSession() async {
-    final res = await client.get(_u('/study-sessions/resume'), headers: _jsonHeaders);
+    final res =
+        await client.get(_u('/study-sessions/resume'), headers: _jsonHeaders);
     if (res.statusCode ~/ 100 != 2) {
       throw Exception('세션 재개 실패: ${res.body}');
     }
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
 
-  // 4) 종료
   Future<Map<String, dynamic>> finishSession() async {
-    final res = await client.get(_u('/study-sessions/finish'), headers: _jsonHeaders);
+    final res =
+        await client.get(_u('/study-sessions/finish'), headers: _jsonHeaders);
     if (res.statusCode ~/ 100 != 2) {
       throw Exception('세션 종료 실패: ${res.body}');
     }
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
 
- // 5) 종료 세션을 기록으로 내보내기 (feedback_id 절대 전송 X)
-// import 'dart:convert';  // 꼭 있어야 합니다.
+  /// 종료 세션을 기록으로 내보내기
+  Future<Map<String, dynamic>> exportToRecord({
+    required String title,
+    required List<String> emotionTagIds,
+    required String spaceId,
+    int? wifiScore,
+    int? noiseLevel,
+    int? crowdness,
+    bool? power,
+  }) async {
+    final cleanTags = <String>{
+      for (final t in emotionTagIds) t.trim(),
+    }.where((e) => e.isNotEmpty).toList();
 
-/// 5) 종료 세션을 기록으로 내보내기
-/// - 기본은 feedback_id 전송하지 않음
-/// - 넘어온 feedbackId가 있더라도 'undefined' 이거나 UUID 형식이 아니면 제거
-Future<Map<String, dynamic>> exportToRecord({
-  required String title,
-  required List<String> emotionTagIds,
-  required String spaceId,
-  int? wifiScore,
-  int? noiseLevel,
-  int? crowdness,
-  bool? power,
-}) async {
-  // 감정 태그 정리: trim + 중복 제거 + 빈값 제거
-  final cleanTags = <String>{
-    for (final t in emotionTagIds) t.trim(),
-  }.where((e) => e.isNotEmpty).toList();
+    final body = <String, dynamic>{
+      'title': title.trim(),
+      'emotion_tag_ids': cleanTags,
+      'space_id': spaceId.trim(),
+      if (wifiScore != null) 'wifi_score': wifiScore,
+      if (noiseLevel != null) 'noise_level': noiseLevel,
+      if (crowdness != null) 'crowdness': crowdness,
+      if (power != null) 'power': power,
+    };
 
-  // payload 구성 (null은 넣지 않음)
-  final body = <String, dynamic>{
-    'title': title.trim(),
-    'emotion_tag_ids': cleanTags,
-    'space_id': spaceId.trim(),
-    if (wifiScore != null)  'wifi_score':  wifiScore,
-    if (noiseLevel != null) 'noise_level': noiseLevel,
-    if (crowdness != null)  'crowdness':   crowdness,
-    if (power != null)      'power':       power,
-    // ❌ 'feedback_id' 절대 추가 금지
-  };
-  final res = await client.post(
-    _u('/study-sessions/session-to-record'),
-    headers: _jsonHeaders, // Authorization은 AuthHttpClient가 주입
-    body: jsonEncode(body),
-  );
-
-  if (res.statusCode ~/ 100 != 2) {
-    throw Exception('세션 기록 내보내기 실패: ${res.body}');
-  }
-
-  return jsonDecode(res.body) as Map<String, dynamic>;
-}
-
-Future<Map<String, dynamic>?> fetchSpaceDetail(String spaceId) async {
-  if (spaceId.trim().isEmpty) return null;
-
-  final res = await client.get(
-    _u('/spaces/detail', {'space_id': spaceId}),
-    headers: _jsonHeaders,
-  );
-  if (res.statusCode ~/ 100 != 2) {
-    throw Exception('공간 상세 조회 실패: ${res.statusCode} ${res.body}');
-  }
-
-  final body = jsonDecode(res.body) as Map<String, dynamic>;
-  final list = (body['data'] as List? ?? const []);
-  if (list.isEmpty) return null;
-  return Map<String, dynamic>.from(list.first as Map);
-}
-
-
- Future<bool> quitSession() async {
-    final res = await client.get(
-      _u('/study-sessions/quit'),
-      headers: _jsonHeaders, // Authorization은 AuthHttpClient가 넣어줌
+    final res = await client.post(
+      _u('/study-sessions/session-to-record'),
+      headers: _jsonHeaders,
+      body: jsonEncode(body),
     );
 
-    // 세션이 없을 때 404를 정상 취소로 간주 (Postman엔 항상 200 예시)
+    if (res.statusCode ~/ 100 != 2) {
+      throw Exception('세션 기록 내보내기 실패: ${res.body}');
+    }
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>?> fetchSpaceDetail(String spaceId) async {
+    if (spaceId.trim().isEmpty) return null;
+
+    final res = await client.get(
+      _u('/spaces/detail', {'space_id': spaceId}),
+      headers: _jsonHeaders,
+    );
+    if (res.statusCode ~/ 100 != 2) {
+      throw Exception('공간 상세 조회 실패: ${res.statusCode} ${res.body}');
+    }
+
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    final list = (body['data'] as List? ?? const []);
+    if (list.isEmpty) return null;
+    return Map<String, dynamic>.from(list.first as Map);
+  }
+
+  /// 사진 업로드 (form-data, field: "file")
+  /// - Content-Type 헤더를 수동 설정하지 않음 (boundary 자동)
+  /// - bearerToken 전달 시 Authorization 부여
+  Future<Map<String, dynamic>> uploadRecordPhoto({
+    required String recordId,
+    required File file,
+    String? bearerToken,
+  }) async {
+    final uri = _u('/photos/records/$recordId');
+    final req = http.MultipartRequest('POST', uri);
+
+    if (bearerToken != null && bearerToken.isNotEmpty) {
+      req.headers['Authorization'] = 'Bearer $bearerToken';
+    }
+    req.headers['Accept'] = 'application/json';
+
+    final bytes = await file.readAsBytes();
+    final mime = lookupMimeType(file.path) ?? 'application/octet-stream';
+    final parts = mime.split('/');
+    final mt = parts.length == 2 ? MediaType(parts[0], parts[1]) : null;
+
+    req.files.add(http.MultipartFile.fromBytes(
+      'file',
+      bytes,
+      filename: p.basename(file.path),
+      contentType: mt,
+    ));
+
+    // 전역 client가 Content-Type을 덮어쓸 수 있으므로 직접 send()
+    final streamed = await req.send();
+    final res = await http.Response.fromStream(streamed);
+
+    if (res.statusCode ~/ 100 != 2) {
+      throw Exception('사진 업로드 실패: ${res.statusCode} ${res.body}');
+    }
+    return jsonDecode(res.body) as Map<String, dynamic>;
+  }
+
+  Future<bool> quitSession() async {
+    final res = await client.get(
+      _u('/study-sessions/quit'),
+      headers: _jsonHeaders,
+    );
+
     if (res.statusCode == 404) return true;
 
-    // 2xx면 성공으로 처리 (바디가 비어있을 수도 있음)
     if (res.statusCode ~/ 100 == 2) {
       if (res.body.isEmpty) return true;
       final body = jsonDecode(res.body);
       if (body is Map && body['success'] == true) return true;
-      // success 필드 없으면 일단 성공 취급
       return true;
     }
 
     throw Exception('세션 취소(quit) 실패: ${res.statusCode} ${res.body}');
   }
 
+  // 기록카드 상세 조회
+  Future<Map<String, dynamic>> fetchRecordDetail(String recordId) async {
+    if (recordId.trim().isEmpty) {
+      throw ArgumentError('recordId is empty');
+    }
 
+    final res = await client.get(
+      _u('/record/records/$recordId'),
+      headers: _jsonHeaders,
+    );
+
+    if (res.statusCode ~/ 100 != 2) {
+      throw Exception('기록카드 상세 조회 실패: ${res.statusCode} ${res.body}');
+    }
+
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    return body;
+  }
 
   // 사용자의 현재 활성 세션 조회
   Future<Map<String, dynamic>?> fetchUserSession() async {
-    final res = await client.get(_u('/study-sessions/user-session'), headers: _jsonHeaders);
+    final res =
+        await client.get(_u('/study-sessions/user-session'), headers: _jsonHeaders);
     if (res.statusCode == 404) return null;
     if (res.statusCode ~/ 100 != 2) {
       throw Exception('사용자 세션 조회 실패: ${res.body}');
@@ -167,9 +215,7 @@ Future<Map<String, dynamic>?> fetchSpaceDetail(String spaceId) async {
   }
 
   // ===== Moods =====
-  /// 공간무드 패치 (개수 제한 없음)
   Future<Map<String, dynamic>> updateSessionMood(List<String> moods) async {
-    // trim + 빈값 제거 + 중복 제거(순서 유지)
     final cleaned = <String>[];
     for (final m in moods) {
       final s = m.trim();
@@ -190,7 +236,6 @@ Future<Map<String, dynamic>?> fetchSpaceDetail(String spaceId) async {
   }
 
   // ===== Goals =====
-
   Future<Map<String, dynamic>> addGoal(String text, {bool done = false}) async {
     final res = await client.post(
       _u('/study-sessions/goals'),
@@ -239,7 +284,6 @@ Future<Map<String, dynamic>?> fetchSpaceDetail(String spaceId) async {
   }
 
   // ===== Wallpaper =====
-
   Future<String> fetchWallpaper(String moodQuery) async {
     final res = await client.get(
       _u('/photos/wallpaper', {'query': moodQuery}),

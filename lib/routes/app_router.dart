@@ -22,11 +22,9 @@ import 'package:moods/features/record/view/record_timer_screen.dart';
 import 'package:moods/features/record/view/record_card_preview.dart';
 import 'package:moods/features/record/controller/record_controller.dart';
 import 'package:moods/features/record/view/record_finalize_step1.dart';
-
 class RouterPing extends ChangeNotifier {
   void ping() => notifyListeners();
 }
-
 final routerPing = RouterPing();
 
 class GoRouterRefresh extends ChangeNotifier {
@@ -61,7 +59,7 @@ GoRouter createAppRouter() {
 
       // 0) 딥링크 콜백은 통과 (원하면 /home 등으로 바꿔도 됨)
       if (state.uri.scheme == 'moods') {
-        return '/profile';
+        return '/start';
       }
 
       // 1) 온보딩 화면은 항상 통과
@@ -74,7 +72,7 @@ GoRouter createAppRouter() {
       // 2) 로그인 게이트
       final prefs = await SharedPreferences.getInstance();
       final spToken = prefs.getString('access_token');
-      final hasSp = spToken != null && spToken.isNotEmpty;
+      final hasSp   = spToken != null && spToken.isNotEmpty;
 
       final session = supa.auth.currentSession;
       final hasSupa = session != null;
@@ -105,8 +103,7 @@ GoRouter createAppRouter() {
                 .eq('id', uid)
                 .maybeSingle();
 
-            filled =
-                row != null &&
+            filled = row != null &&
                 (row['nickname'] ?? '').toString().isNotEmpty &&
                 row['birthday'] != null &&
                 row['gender'] != null &&
@@ -136,14 +133,8 @@ GoRouter createAppRouter() {
       GoRoute(path: '/register', builder: (_, __) => const RegisterScreen()),
       GoRoute(path: '/kakao', builder: (_, __) => const AdditionalInfoScreen()),
       GoRoute(path: '/terms', builder: (_, __) => const TermsAgreementScreen()),
-      GoRoute(
-        path: '/complete',
-        builder: (_, __) => const SignUpCompleteScreen(),
-      ),
-      GoRoute(
-        path: '/reset-password',
-        builder: (_, __) => const PasswordResetScreen(),
-      ),
+      GoRoute(path: '/complete', builder: (_, __) => const SignUpCompleteScreen()),
+      GoRoute(path: '/reset-password', builder: (_, __) => const PasswordResetScreen()),
       GoRoute(
         path: '/record/preview',
         builder: (_, state) {

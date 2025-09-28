@@ -26,6 +26,8 @@ dependencies:
   google_maps_flutter: ^2.13.1
   google_place: ^0.4.7
   geolocator: ^14.0.2
+  http_parser: ^4.0.2
+  mime: ^2.0.0
 
 
 
@@ -53,6 +55,10 @@ flutter:
     - assets/fonts/icons/crown.svg
     - assets/fonts/icons/this_is_moods_house.png
     - assets/fonts/icons/
+    - assets/fonts/icons/mdi_camera.svg
+    - assets/fonts/icons/gallery.svg
+    - assets/fonts/icons/moodslogo.svg
+    - assets/fonts/
 
   fonts:
     - family: Pretendard

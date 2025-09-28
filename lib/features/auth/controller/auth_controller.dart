@@ -202,7 +202,7 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
     await _storage.saveLoginPayload({
       'type': 'password',
       'email': email,
-      'password': password,
+      'password': password,        
     });
 
     ref.read(authTokenProvider.notifier).state = access;
@@ -249,7 +249,7 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
       state = AsyncValue.error(e, st);
     }
   }
-
+       
   // -------------------------------
   // 비밀번호 재설정
   // -------------------------------
