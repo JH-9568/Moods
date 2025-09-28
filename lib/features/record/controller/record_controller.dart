@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:moods/features/home/widget/study_record/home_record_controller.dart';
 
 import 'package:moods/providers.dart'; // recordServiceProvider, authTokenProvider
 
@@ -445,82 +446,84 @@ class RecordController extends StateNotifier<RecordState> {
 
   static const _kUnexportedErr = 'unexported_session_exists';
 
-Future<void> startWithArgs(StartArgs args, {BuildContext? context}) async {
-  if (_starting) return;
-  _starting = true;
-  try {
-    if (!await _ensureToken()) {
-      if (context != null) _showError(context, '로그인이 만료되었습니다. 다시 로그인해 주세요.');
-      return;
-    }
-
-    // ---------- 1) 선조회 ----------
-    Map<String, dynamic> existing = {};
+  Future<void> startWithArgs(StartArgs args, {BuildContext? context}) async {
+    if (_starting) return;
+    _starting = true;
     try {
-      final found = await _svc.fetchUserSession();
-      existing = _rootDataOrSelf(_asMap(found));
-    } catch (e) {
-      // 조회 실패는 새 시작 시도 쪽으로 넘김
-      print('⚠️ 사전 조회 실패(무시): $e');
-    }
-
-    if (existing.isNotEmpty) {
-      final status = _mapStatus(existing['status']);
-      if (status == _SessionStatus.running || status == _SessionStatus.paused) {
-        print('↩️ 기존 활성 세션 복구');
-        _applyRecoveredSession(existing, args: args);
-        return;
-      }
-      if (status == _SessionStatus.completed) {
-        print('ℹ️ 완료 세션 발견 → 기록하기로 보냄');
-        _primeFinalizeState(existing);
-        throw Exception(_kUnexportedErr);
-      }
-    }
-
-    // ---------- 2) 새 세션 시작 ----------
-    DateTime startedAt = DateTime.now().toUtc();
-    List<GoalItem> goals = args.goals.map((e) => GoalItem(e, false)).toList();
-
-    Future<void> _startNew() async {
-      final respRaw = await _svc.startSession(
-        moodId: args.moodId,
-        goals: args.goals,
-      );
-      final resp = _rootDataOrSelf(_asMap(respRaw));
-
-      startedAt = _asDateTime(resp['start_time']) ?? startedAt;
-      final session = _asMap(resp['session']);
-      final srcGoals = session.isNotEmpty ? session['goals'] : resp['goals'];
-      final serverGoals = <GoalItem>[];
-      for (final g in _asList(srcGoals)) {
-        final gm = _asMap(g);
-        final text = gm['text']?.toString();
-        if (text != null) serverGoals.add(GoalItem(text, _asBool(gm['done'])));
-      }
-      if (serverGoals.isNotEmpty) goals = serverGoals;
-
-      final recId = (session['record_id'] ?? resp['record_id'])?.toString();
-      if (recId != null && recId.isNotEmpty) {
-        state = state.copyWith(activeRecordId: recId);
-      }
-    }
-
-    try {
-      await _startNew();
-    } catch (e) {
-      final msg = e.toString().toLowerCase();
-      final already =
-          (msg.contains('이미') && msg.contains('세션')) ||
-          (msg.contains('already') && msg.contains('exist'));
-
-      if (!already) {
-        print('🚨 세션 시작 실패: $e');
-        if (context != null) _showError(context, '세션 시작 실패');
+      if (!await _ensureToken()) {
+        if (context != null) _showError(context, '로그인이 만료되었습니다. 다시 로그인해 주세요.');
         return;
       }
 
-      // ---------- 3) “이미 있음”이면 재조회 한 번으로 분기 ----------
+      // ---------- 1) 선조회 ----------
+      Map<String, dynamic> existing = {};
+      try {
+        final found = await _svc.fetchUserSession();
+        existing = _rootDataOrSelf(_asMap(found));
+      } catch (e) {
+        // 조회 실패는 새 시작 시도 쪽으로 넘김
+        print('⚠️ 사전 조회 실패(무시): $e');
+      }
+
+      if (existing.isNotEmpty) {
+        final status = _mapStatus(existing['status']);
+        if (status == _SessionStatus.running ||
+            status == _SessionStatus.paused) {
+          print('↩️ 기존 활성 세션 복구');
+          _applyRecoveredSession(existing, args: args);
+          return;
+        }
+        if (status == _SessionStatus.completed) {
+          print('ℹ️ 완료 세션 발견 → 기록하기로 보냄');
+          _primeFinalizeState(existing);
+          throw Exception(_kUnexportedErr);
+        }
+      }
+
+      // ---------- 2) 새 세션 시작 ----------
+      DateTime startedAt = DateTime.now().toUtc();
+      List<GoalItem> goals = args.goals.map((e) => GoalItem(e, false)).toList();
+
+      Future<void> _startNew() async {
+        final respRaw = await _svc.startSession(
+          moodId: args.moodId,
+          goals: args.goals,
+        );
+        final resp = _rootDataOrSelf(_asMap(respRaw));
+
+        startedAt = _asDateTime(resp['start_time']) ?? startedAt;
+        final session = _asMap(resp['session']);
+        final srcGoals = session.isNotEmpty ? session['goals'] : resp['goals'];
+        final serverGoals = <GoalItem>[];
+        for (final g in _asList(srcGoals)) {
+          final gm = _asMap(g);
+          final text = gm['text']?.toString();
+          if (text != null)
+            serverGoals.add(GoalItem(text, _asBool(gm['done'])));
+        }
+        if (serverGoals.isNotEmpty) goals = serverGoals;
+
+        final recId = (session['record_id'] ?? resp['record_id'])?.toString();
+        if (recId != null && recId.isNotEmpty) {
+          state = state.copyWith(activeRecordId: recId);
+        }
+      }
+
+      try {
+        await _startNew();
+      } catch (e) {
+        final msg = e.toString().toLowerCase();
+        final already =
+            (msg.contains('이미') && msg.contains('세션')) ||
+            (msg.contains('already') && msg.contains('exist'));
+
+        if (!already) {
+          print('🚨 세션 시작 실패: $e');
+          if (context != null) _showError(context, '세션 시작 실패');
+          return;
+        }
+
+        // ---------- 3) “이미 있음”이면 재조회 한 번으로 분기 ----------
         try {
           Map<String, dynamic> again = {};
 
@@ -560,39 +563,43 @@ Future<void> startWithArgs(StartArgs args, {BuildContext? context}) async {
           if (context != null) _showError(context, '세션 시작 실패');
           return;
         }
+      }
+
+      // ---------- 4) 새 세션 시작 성공 상태 반영 ----------
+      final initMoods = args.moodId.isEmpty
+          ? <String>[]
+          : <String>[args.moodId];
+      state = state.copyWith(
+        startedAtUtc: startedAt,
+        isRunning: true,
+        isPaused: false,
+        hasActiveSession: true, // run/pause일 때만 true
+        selectedMoods: initMoods.isNotEmpty ? initMoods : state.selectedMoods,
+        goals: goals,
+        title: args.title,
+        spaceId: args.spaceId,
+        emotionTagIds: args.emotionTagIds,
+        wifiScore: args.wifiScore,
+        noiseLevel: args.noiseLevel,
+        crowdness: args.crowdness,
+        power: args.power,
+      );
+
+      if (state.selectedMoods.isNotEmpty)
+        _fetchWallpaper(state.selectedMoods.last);
+      _startTicker();
+    } catch (e) {
+      _starting = false;
+      rethrow; // UI에서 unexported_session_exists 처리
+    } finally {
+      if (_starting) _starting = false;
     }
-
-    // ---------- 4) 새 세션 시작 성공 상태 반영 ----------
-    final initMoods = args.moodId.isEmpty ? <String>[] : <String>[args.moodId];
-    state = state.copyWith(
-      startedAtUtc: startedAt,
-      isRunning: true,
-      isPaused: false,
-      hasActiveSession: true, // run/pause일 때만 true
-      selectedMoods: initMoods.isNotEmpty ? initMoods : state.selectedMoods,
-      goals: goals,
-      title: args.title,
-      spaceId: args.spaceId,
-      emotionTagIds: args.emotionTagIds,
-      wifiScore: args.wifiScore,
-      noiseLevel: args.noiseLevel,
-      crowdness: args.crowdness,
-      power: args.power,
-    );
-
-    if (state.selectedMoods.isNotEmpty) _fetchWallpaper(state.selectedMoods.last);
-    _startTicker();
-
-  } catch (e) {
-    _starting = false;
-    rethrow; // UI에서 unexported_session_exists 처리
-  } finally {
-    if (_starting) _starting = false;
   }
-}
 
   Future<Map<String, dynamic>> uploadRecordPhoto(
-      String recordId, File file) async {
+    String recordId,
+    File file,
+  ) async {
     if (!await _ensureToken()) {
       throw Exception('로그인이 만료되었습니다. 다시 로그인해 주세요.');
     }
@@ -613,7 +620,7 @@ Future<void> startWithArgs(StartArgs args, {BuildContext? context}) async {
     return uploadRecordPhoto(rid, file);
   }
 
- Future<bool> quit({BuildContext? context}) async {
+  Future<bool> quit({BuildContext? context}) async {
     if (!await _ensureToken()) {
       if (context != null) _showError(context, '로그인이 만료되었습니다. 다시 로그인해 주세요.');
       return false;
@@ -729,7 +736,7 @@ Future<void> startWithArgs(StartArgs args, {BuildContext? context}) async {
     }
   }
 
-  Future<Map<String, dynamic>> exportToRecord() {
+  Future<Map<String, dynamic>> exportToRecord() async {
     bool _looksValidSpaceId(String? s) {
       if (s == null || s.trim().isEmpty) return false;
       final v = s.trim();
@@ -742,7 +749,8 @@ Future<void> startWithArgs(StartArgs args, {BuildContext? context}) async {
         ? state.spaceId
         : null;
 
-    return _svc.exportToRecord(
+    // ✅ 먼저 결과를 변수에 받기
+    final resp = await _svc.exportToRecord(
       title: state.title,
       emotionTagIds: state.emotionTagIds,
       spaceId: safeSpaceId,
@@ -751,6 +759,11 @@ Future<void> startWithArgs(StartArgs args, {BuildContext? context}) async {
       crowdness: state.crowdness,
       power: state.power,
     );
+
+    // ✅ 홈 최근 기록 리프레시
+    ref.invalidate(homeRecordControllerProvider);
+
+    return resp;
   }
 
   // =====================
@@ -823,14 +836,14 @@ Future<void> startWithArgs(StartArgs args, {BuildContext? context}) async {
   }
 
   Future<Map<String, dynamic>> getRecordDetail(String recordId) async {
-  if (!await _ensureToken()) {
-    throw Exception('로그인 필요');
+    if (!await _ensureToken()) {
+      throw Exception('로그인 필요');
+    }
+    final raw = await _svc.fetchRecordDetail(recordId);
+    // 서버 응답에서 record 블록만 뽑아 전달
+    final rec = _asMap(raw['record'] ?? raw['data'] ?? raw);
+    return rec;
   }
-  final raw = await _svc.fetchRecordDetail(recordId);
-  // 서버 응답에서 record 블록만 뽑아 전달
-  final rec = _asMap(raw['record'] ?? raw['data'] ?? raw);
-  return rec;
-}
 
   /// Finalize(기록 Step2) 입력 값들을 state에 반영하는 메서드
   void applyFinalizeMeta({

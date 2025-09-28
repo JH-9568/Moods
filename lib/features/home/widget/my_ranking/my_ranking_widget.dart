@@ -146,27 +146,44 @@ class _HeaderStatic extends StatelessWidget {
   }
 }
 
-/// 로딩 상태: 더미 카드 3개
+/// 로딩 상태: 반응형 카드 스켈레톤 (overflow 방지)
 class _LoadingSkeleton extends StatelessWidget {
   const _LoadingSkeleton();
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 200,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: List.generate(3, (_) {
-          return Container(
-            width: 140,
-            height: 180,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-            ),
-          );
-        }),
-      ),
+    // 카드 비율: 실제 카드와 동일(가로/세로)
+    const double aspectRatio = 94.06 / 146.97;
+    const int count = 4; // 로딩 때 보여줄 카드 개수
+    const double gap = 12.0; // 카드 사이 간격
+    const double radius = 12; // 모서리
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final maxW = constraints.maxWidth; // 사용 가능한 전체 가로폭
+        final cardW = (maxW - gap * (count - 1)) / count; // 남는 폭을 카드 개수만큼 균등 분배
+        final cardH = cardW / aspectRatio;
+
+        return SizedBox(
+          height: cardH,
+          child: Row(
+            children: List.generate(count, (i) {
+              return Padding(
+                padding: EdgeInsets.only(right: i == count - 1 ? 0 : gap),
+                child: Container(
+                  width: cardW,
+                  height: cardH,
+                  decoration: BoxDecoration(
+                    color:
+                        Colors.white, // 스켈레톤 배경색(필요시 AppColors.border 등으로 변경)
+                    borderRadius: BorderRadius.circular(radius),
+                  ),
+                ),
+              );
+            }),
+          ),
+        );
+      },
     );
   }
 }
@@ -500,7 +517,7 @@ class _RankingCard extends StatelessWidget {
       child: Container(
         width: size.width,
         height: size.height,
-        clipBehavior: Clip.antiAlias, // ✅ 라운드가 자식에도 적용되도록
+        clipBehavior: Clip.none, // ✅ 라운드가 자식에도 적용되도록
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
           color: Colors.white,
