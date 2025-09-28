@@ -163,16 +163,18 @@ class _RecordSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       height: 123.44,
-      child: Row(
-        children: List.generate(
-          4,
-          (_) => Container(
-            width: 79,
-            margin: const EdgeInsets.only(right: 16),
-            decoration: BoxDecoration(
-              color: AppColors.unchecked,
-              borderRadius: BorderRadius.circular(8),
-            ),
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: EdgeInsets.zero, // 카드 내부 패딩과 겹치지 않게 0
+        physics:
+            const BouncingScrollPhysics(), // 원하면 NeverScrollableScrollPhysics로 비활성화
+        itemCount: 4,
+        separatorBuilder: (_, __) => const SizedBox(width: 16),
+        itemBuilder: (_, __) => Container(
+          width: 79,
+          decoration: BoxDecoration(
+            color: AppColors.unchecked,
+            borderRadius: BorderRadius.circular(8),
           ),
         ),
       ),

@@ -60,7 +60,7 @@ class RecentSpace {
       final hrs = raw['hours'] ?? raw['hour'];
       if (sec != null) return _toSeconds(sec);
       if (hrs != null)
-        return ((double.tryParse(hrs.toString()) ?? 0) * 3600).round();
+        return ((double.tryParse(hrs.toString()) ?? 0) * 1).round();
       // 다른 키가 있다면 필요 시 추가
       return null;
     }
@@ -69,7 +69,7 @@ class RecentSpace {
     if (raw is int) return raw;
 
     // 실수 → "시간"으로 간주해 초로 변환 (API가 9.52 같은 걸 주는 케이스)
-    if (raw is double) return (raw * 3600).round();
+    if (raw is double) return (raw * 1).round();
 
     if (raw is String) {
       final s = raw.trim();
