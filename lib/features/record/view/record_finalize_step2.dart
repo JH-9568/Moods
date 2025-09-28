@@ -223,12 +223,8 @@ Future<void> _submit() async {
       }
     }
 
-    // 4) 현재 state 값으로 미리보기 (서버 재조회 대신)
-    final currentState = ref.read(recordControllerProvider);
-    // 공간 이름은 컨트롤러 state에 없으므로, 텍스트 필드에서 직접 가져옴
-    final spaceDetailForPreview = {'name': _spaceCtrl.text};
-    final cardData = RecordCardData.fromRecordState(currentState, spaceDetailForPreview);
-    await showRecordCardPreview(context, cardData);
+    // 4) 상세조회 값으로 미리보기 (서버에서 이미지 URL 포함 최종 데이터 조회)
+    await showRecordCardPreviewFromRecordId(context, ref, recordId);
 
   } catch (e) {
     if (mounted) {
