@@ -9,6 +9,9 @@ import 'package:moods/common/constants/text_styles.dart';
 import 'package:moods/features/record/controller/record_controller.dart';
 import 'package:moods/features/home/widget/study_count/study_count_controller.dart';
 import 'package:moods/features/home/widget/study_record/home_record_controller.dart';
+import 'package:moods/features/my_page/space_count/space_count_controller.dart';
+import 'package:moods/features/home/widget/study_time/study_time_controller.dart';
+import 'package:moods/features/home/widget/my_ranking/my_ranking_controller.dart';
 
 /// 감정 → 이모지 매핑
 const Map<String, String> _kEmotionEmoji = {
@@ -236,10 +239,11 @@ class _RecordCardOverlay extends StatelessWidget { // StatelessWidget을 유지�
   void _closeAndGoHome(BuildContext context, WidgetRef ref) {
     // 데이터 갱신이 필요한 프로바이더들을 무효화합니다.
     // 이렇게 하면 다음에 해당 프로바이더를 읽을 때 데이터가 새로고침됩니다.
-    ref.invalidate(studyCountControllerProvider);
-    ref.invalidate(homeRecordControllerProvider);
-    // myRankingControllerProvider가 있다면 아래와 같이 추가합니다.
-    // ref.invalidate(myRankingControllerProvider);
+    ref.invalidate(studyTimeControllerProvider); // 홈 '총 공부 시간'
+    ref.invalidate(studyCountControllerProvider); // 홈 '총 공부 횟수'
+    ref.invalidate(homeRecordControllerProvider); // 홈, 마이페이지 '최근 방문 공간'
+    ref.invalidate(studySpaceCountControllerProvider); // 마이페이지 '방문한 공간 수'
+    ref.invalidate(myRankingControllerProvider); // 홈 '나의 공간 랭킹'
 
     // 기존의 화면 이동 로직
     Navigator.of(context, rootNavigator: true).pop();
