@@ -52,9 +52,14 @@ class StudyCountWidget extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          '나의 총 공부 횟수',
-          style: AppTextStyles.bodyBold.copyWith(color: AppColors.text_color1),
+        Padding(
+          padding: const EdgeInsets.only(left: 14), // ← 제목을 살짝 오른쪽으로
+          child: Text(
+            '나의 총 공부 횟수',
+            style: AppTextStyles.bodyBold.copyWith(
+              color: AppColors.text_color1,
+            ),
+          ),
         ),
         const SizedBox(height: 2),
 

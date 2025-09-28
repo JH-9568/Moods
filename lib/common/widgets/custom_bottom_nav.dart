@@ -66,7 +66,7 @@ class CustomBottomNav extends StatelessWidget {
           final iconPath = isSelected
               ? tabs[index]['selectedIcon']!
               : tabs[index]['icon']!;
-          final textColor = isSelected ? AppColors.dark : AppColors.black;
+          final textColor = isSelected ? AppColors.black : AppColors.black;
 
           return GestureDetector(
             onTap: () {
@@ -80,7 +80,10 @@ class CustomBottomNav extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   tabs[index]['label']!,
-                  style: AppTextStyles.small.copyWith(color: textColor),
+                  style: AppTextStyles.bodyBold.copyWith(
+                    color: textColor,
+                    fontSize: 10,
+                  ),
                 ),
               ],
             ),

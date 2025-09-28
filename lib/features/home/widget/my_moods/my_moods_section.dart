@@ -40,14 +40,12 @@ class MyMoodsSection extends StatelessWidget {
             '공간 기록과 함께 공부를 시작해보세요',
             style: AppTextStyles.bodyBold.copyWith(color: Colors.black),
           ),
-          const SizedBox(height: 30),
+          const SizedBox(height: 27),
 
-          // 공부 횟수 게이지
-          const SizedBox(height: 12),
           // 공부 시작하기 버튼
           SizedBox(
             width: double.infinity,
-            height: 50,
+            height: 48,
             child: ElevatedButton(
               onPressed: () {
                 final now = DateTime.now();
@@ -77,12 +75,10 @@ class MyMoodsSection extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              child: const Text(
+              child: Text(
                 '공부 시작하기',
-                style: TextStyle(
-                  fontSize: 18,
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
+                style: AppTextStyles.bodyBold.copyWith(
+                  color: Colors.white, // 흰색 지정
                 ),
               ),
             ),

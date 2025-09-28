@@ -67,7 +67,7 @@ class _SpaceStudyCountWidgetState extends ConsumerState<SpaceStudyCountWidget> {
           SizedBox(
             width: 1,
             child: Container(
-              margin: const EdgeInsets.symmetric(vertical: 10),
+              margin: const EdgeInsets.symmetric(vertical: 5),
               color: Colors.white,
             ),
           ),
@@ -104,9 +104,16 @@ class _MetricCell extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          SizedBox(height: 5),
           // 라벨
-          Text(label, style: AppTextStyles.bodyBold),
-          const SizedBox(height: 4),
+          Text(
+            label,
+            style: AppTextStyles.small.copyWith(
+              fontWeight: FontWeight.w600,
+              color: Colors.black, // ✅ 색상 명시
+            ),
+          ),
+
           // 값 + 단위
           Row(
             mainAxisSize: MainAxisSize.min,
@@ -114,19 +121,20 @@ class _MetricCell extends StatelessWidget {
             children: [
               Text(
                 valueText,
-                style: AppTextStyles.subtitle.copyWith(
-                  fontWeight: FontWeight.w800,
+                style: AppTextStyles.title.copyWith(
+                  height: 1.3,
                   color: AppColors.text_color1,
                 ),
               ),
-              const SizedBox(width: 4),
-              // 단위 (회/곳) — 요청대로 RGBO(175,175,175,1)
-              const Text(
-                '회', // 자리 고정, 실제 단위는 아래에서 교체
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Color.fromRGBO(175, 175, 175, 1),
+              const SizedBox(width: 7),
+              // 단위만 Transform으로 위로 올림
+              Transform.translate(
+                offset: const Offset(0, -6),
+                child: Text(
+                  unitText,
+                  style: AppTextStyles.body.copyWith(
+                    color: const Color.fromRGBO(175, 175, 175, 1),
+                  ),
                 ),
               ),
             ],

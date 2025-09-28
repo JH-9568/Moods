@@ -15,14 +15,14 @@ class StudyTimeSegmented extends StatelessWidget {
     super.key,
     required this.value,
     required this.onChanged,
-    this.width = 100, // 필요 시 외부에서 폭 조절
+    this.width = 90, // 필요 시 외부에서 폭 조절
   });
 
   @override
   Widget build(BuildContext context) {
     const double height = 24;
     const double radius = 20;
-    const double outerPadding = 3;
+    const double outerPadding = 2.5;
 
     final bool isMonth = value == StudyScope.month;
 

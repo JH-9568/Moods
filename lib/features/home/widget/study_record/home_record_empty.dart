@@ -19,11 +19,6 @@ class StudyRecordEmptyCard extends StatelessWidget {
       ),
       child: Stack(
         children: [
-          Positioned(
-            right: 3,
-            top: 0,
-            child: SvgPicture.asset('assets/fonts/icons/calender.svg'),
-          ),
           // 중앙 텍스트
           Center(
             child: Column(
@@ -42,7 +37,6 @@ class StudyRecordEmptyCard extends StatelessWidget {
                   ),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 4),
                 Text(
                   '다양한 공간을 방문해 공부를 시작해보세요!',
                   style: AppTextStyles.small.copyWith(

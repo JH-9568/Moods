@@ -48,17 +48,17 @@ class StudyTimeWidget extends ConsumerWidget {
                   Align(
                     alignment: Alignment.topCenter, // 가로축은 가운데 고정
                     child: Transform.translate(
-                      offset: const Offset(0, 8), // Y축으로 40px 내려줌 (원하는 값으로 조정)
+                      offset: const Offset(0, 5), // Y축으로 40px 내려줌 (원하는 값으로 조정)
                       child: ImageFiltered(
                         imageFilter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                         child: Opacity(
-                          opacity: 1,
+                          opacity: 0.9,
                           child: Container(
                             width: 151,
                             height: 151,
                             decoration: const BoxDecoration(
                               shape: BoxShape.circle,
-                              color: Color.fromRGBO(239, 232, 227, 1),
+                              color: Color.fromRGBO(224, 216, 209, 1),
                             ),
                           ),
                         ),

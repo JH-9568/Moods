@@ -30,7 +30,7 @@ class RankingEmptyCard extends StatelessWidget {
               style: AppTextStyles.small.copyWith(color: AppColors.text_color2),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 4),
+
             Text(
               '공부 기록을 쌓아보세요!',
               style: AppTextStyles.small.copyWith(color: AppColors.text_color2),

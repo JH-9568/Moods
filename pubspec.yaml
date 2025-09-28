@@ -53,6 +53,8 @@ flutter:
     - assets/fonts/icons/toggle_active.svg
     - assets/fonts/icons/toggle_inactive.svg
     - assets/fonts/icons/crown.svg
+    - assets/fonts/icons/this_is_moods_house.png
+    - assets/fonts/icons/
     - assets/fonts/icons/mdi_camera.svg
     - assets/fonts/icons/gallery.svg
     - assets/fonts/icons/moodslogo.svg
