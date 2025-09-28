@@ -23,15 +23,15 @@ class UserProfileWidget extends ConsumerWidget {
       });
     }
 
-    final nickname = state.profile?.nickname?.trim();
+    final nickname = state.profile?.nickname.trim();
     final birthday = state.profile?.birthday?.trim();
-    final email = state.profile?.email?.trim();
-    final genderRaw = state.profile?.gender?.trim().toLowerCase();
-    final genderKo = (genderRaw == 'm')
+    final email = state.profile?.email.trim();
+    final genderRaw = (state.profile?.gender ?? '').trim().toLowerCase();
+    final genderKo = genderRaw == 'male'
         ? '남'
-        : (genderRaw == 'f')
+        : genderRaw == 'female'
         ? '여'
-        : (genderRaw == null || genderRaw.isEmpty ? '' : genderRaw);
+        : (genderRaw.isEmpty ? '' : genderRaw);
 
     final nickText = state.loading && !state.loadedOnce
         ? '…'
@@ -54,7 +54,7 @@ class UserProfileWidget extends ConsumerWidget {
       height: 69,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: AppColors.sub,
+        color: AppColors.main,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -64,12 +64,15 @@ class UserProfileWidget extends ConsumerWidget {
           // 좌측: 닉네임 - 세로 '정중앙'
           Expanded(
             child: Align(
-              alignment: Alignment.center,
+              alignment: Alignment.topCenter,
               child: Text(
                 nickText,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: AppTextStyles.title.copyWith(color: Colors.black),
+                style: AppTextStyles.title.copyWith(
+                  color: Colors.white,
+                  height: 1.3,
+                ),
               ),
             ),
           ),
@@ -88,14 +91,14 @@ class UserProfileWidget extends ConsumerWidget {
                     birthGenderText.isEmpty ? '-' : birthGenderText,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: AppTextStyles.small.copyWith(color: Colors.black),
+                    style: AppTextStyles.small.copyWith(color: Colors.white),
                   ),
                   const SizedBox(height: 1), // ↓ 오버플로우 2px 방지: 2→1로 줄임
                   Text(
                     emailText,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: AppTextStyles.small.copyWith(color: Colors.black),
+                    style: AppTextStyles.small.copyWith(color: Colors.white),
                   ),
                   const SizedBox(height: 1), // ↓ 동일
                   InkWell(
@@ -105,9 +108,9 @@ class UserProfileWidget extends ConsumerWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: AppTextStyles.small.copyWith(
-                        color: AppColors.text_color2,
+                        color: AppColors.text_color3,
                         decoration: TextDecoration.underline,
-                        decorationColor: AppColors.text_color2,
+                        decorationColor: AppColors.text_color3,
                       ),
                     ),
                   ),

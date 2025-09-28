@@ -24,6 +24,17 @@ class HomeRecordSection extends ConsumerWidget {
       });
     }
 
+    // ✅ 기록이 없거나(빈 목록) 에러면: 컨테이너/헤더 없이 "빈 상태 카드"만 보여줌
+    if (state.loadedOnce && (state.error != null || state.items.isEmpty)) {
+      return const StudyRecordEmptyCard();
+    }
+
+    // ⏳ 초기 로딩(아직 데이터 결정 전)에는 스켈레톤만 필요하면 이렇게 바로 반환해도 됨
+    if (state.loading && !state.loadedOnce) {
+      return const _RecordSkeleton();
+    }
+
+    // ✅ 정상 데이터가 있을 때만 기존 섹션 컨테이너 렌더링
     return Container(
       width: 361,
       height: 386,
@@ -40,18 +51,9 @@ class HomeRecordSection extends ConsumerWidget {
           Text('최근 방문 공간', style: AppTextStyles.bodyBold),
           const SizedBox(height: 12),
 
-          if (state.loading && !state.loadedOnce)
-            const _RecordSkeleton()
-          else if (state.error != null || state.items.isEmpty)
-            const StudyRecordEmptyCard()
-          else ...[
-            _RecordList(items: state.items.take(20).toList()),
-            const SizedBox(height: 15), // 사진 목록과 키워드 텍스트 사이 간격
-            Text(
-              '선호공간 키워드', // 👈 추가된 줄
-              style: AppTextStyles.bodyBold,
-            ),
-          ],
+          _RecordList(items: state.items.take(20).toList()),
+          const SizedBox(height: 15),
+          Text('선호공간 키워드', style: AppTextStyles.bodyBold),
         ],
       ),
     );
@@ -66,7 +68,7 @@ class _RecordList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 123.44, // 카드 높이에 맞춤
+      height: 123.44,
       child: ListView.separated(
         padding: const EdgeInsets.symmetric(horizontal: 0),
         scrollDirection: Axis.horizontal,
@@ -89,26 +91,30 @@ class _RecordCard extends StatelessWidget {
     final hasImage =
         (item.spaceImageUrl != null && item.spaceImageUrl!.trim().isNotEmpty);
 
+    // 🔧 그림자 세기 조절 포인트
+    final boxShadow = [
+      BoxShadow(
+        color: Colors.black.withOpacity(0.1),
+        blurRadius: 6,
+        spreadRadius: 0,
+        offset: const Offset(0, 2),
+      ),
+    ];
+
     return Container(
       width: 79,
       height: 123.44,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        image: hasImage
-            ? DecorationImage(
-                image: NetworkImage(item.spaceImageUrl!),
-                fit: BoxFit.cover,
-              )
-            : null,
-      ),
-      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(color: Colors.white, boxShadow: boxShadow),
       child: Stack(
         children: [
-          // 하단 정보 바 (오버플로우 방지: 높이/패딩/폰트 조정)
+          if (hasImage)
+            Positioned.fill(
+              child: Image.network(item.spaceImageUrl!, fit: BoxFit.cover),
+            ),
           Positioned(
             left: 0,
             right: 0,
-            bottom: 0,
+            top: 87,
             child: Container(
               height: 40,
               color: Colors.white,
@@ -117,12 +123,11 @@ class _RecordCard extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 날짜
                   Text(
                     dateText,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: AppTextStyles.small.copyWith(
+                    style: AppTextStyles.bodyBold.copyWith(
                       fontSize: 7,
                       height: 1.0,
                       fontWeight: FontWeight.w600,
@@ -130,7 +135,6 @@ class _RecordCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 2),
-                  // 지점명
                   Text(
                     item.spaceName,
                     maxLines: 1,

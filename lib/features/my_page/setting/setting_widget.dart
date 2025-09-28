@@ -5,119 +5,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:moods/common/constants/colors.dart';
 import 'package:moods/common/constants/text_styles.dart';
 import 'package:moods/features/my_page/setting/account_delete/account_delete_controller.dart';
+import 'package:moods/features/my_page/widget/logout_confirm_dialog.dart';
+import 'package:moods/features/my_page/widget/account_delete_dialog.dart';
 
 class SettingSection extends ConsumerWidget {
   final String appVersionText;
   const SettingSection({super.key, this.appVersionText = '1.0v'});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final account = ref.watch(accountControllerProvider);
-
-    ref.listen<AccountState>(accountControllerProvider, (prev, next) {
-      if (next.error != null && next.error!.isNotEmpty) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('에러: ${next.error}')));
-      } else if (next.lastMessage != null && next.lastMessage!.isNotEmpty) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(next.lastMessage!)));
-      }
-    });
-
-    return Container(
-      width: 361,
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _line(),
-          Text('설정', style: AppTextStyles.subtitle),
-          const SizedBox(height: 12),
-          _tile(
-            title: Text('로그아웃', style: AppTextStyles.bodyBold),
-            onTap: account.deleting
-                ? null
-                : () async {
-                    try {
-                      await Supabase.instance.client.auth.signOut();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('로그아웃 되었습니다.')),
-                      );
-                    } catch (e) {
-                      ScaffoldMessenger.of(
-                        context,
-                      ).showSnackBar(SnackBar(content: Text('로그아웃 실패: $e')));
-                    }
-                  },
-          ),
-          _tile(
-            title: Text('탈퇴', style: AppTextStyles.bodyBold),
-            onTap: account.deleting
-                ? null
-                : () async {
-                    final ok = await _confirm(
-                      context,
-                      '정말 탈퇴하시겠어요?\n모든 데이터가 삭제됩니다.',
-                    );
-                    if (ok != true) return;
-                    await ref
-                        .read(accountControllerProvider.notifier)
-                        .deleteUser();
-                  },
-            trailing: account.deleting
-                ? const SizedBox(
-                    height: 16,
-                    width: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : null,
-          ),
-          _tile(
-            title: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('버전 정보', style: AppTextStyles.bodyBold),
-                const SizedBox(width: 7), // ← 간격 원하는 대로 조정
-                Text(
-                  appVersionText,
-                  style: AppTextStyles.small.copyWith(
-                    color: AppColors.text_color2,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _line() => Container(
-    height: 1,
-    color: Colors.black.withOpacity(0.06),
-    margin: const EdgeInsets.only(bottom: 6),
-  );
-
-  Widget _tile({required Widget title, VoidCallback? onTap, Widget? trailing}) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 3),
-        child: Row(
-          children: [
-            Expanded(child: title), // 이제 title이 위젯이므로 Row도 넣을 수 있음
-            if (trailing != null) trailing,
-          ],
-        ),
-      ),
-    );
-  }
 
   Future<bool?> _confirm(BuildContext ctx, String msg) {
     return showDialog<bool>(
@@ -137,4 +30,131 @@ class SettingSection extends ConsumerWidget {
       ),
     );
   }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final account = ref.watch(accountControllerProvider);
+
+    ref.listen<AccountState>(accountControllerProvider, (prev, next) {
+      if (next.error != null && next.error!.isNotEmpty) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('에러: ${next.error}')));
+      } else if (next.lastMessage != null && next.lastMessage!.isNotEmpty) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(next.lastMessage!)));
+      }
+    });
+
+    return Container(
+      margin: EdgeInsets.zero,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      // ⬅︎ 가로패딩 제거, 세로패딩만
+      padding: const EdgeInsets.symmetric(vertical: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _line(), // ⬅︎ 전폭 라인
+          // ⬇︎ 나머지는 개별적으로 좌우 16 패딩
+          const SizedBox(height: 10),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: _TitleRow(),
+          ),
+          const SizedBox(height: 5),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: _tile(
+              title: Text(
+                '로그아웃',
+                style: AppTextStyles.small.copyWith(color: Colors.black),
+              ),
+              onTap: () {
+                showLogoutConfirmDialog(context, ref); // ← ref 함께 전달, 결과 안 기다림
+              },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: _tile(
+              title: Text(
+                '탈퇴',
+                style: AppTextStyles.small.copyWith(color: Colors.black),
+              ),
+              onTap: () {
+                showAccountDeleteDialog(context, ref);
+              },
+              trailing: account.deleting
+                  ? const SizedBox(
+                      height: 16,
+                      width: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : null,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: _tile(
+              title: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '버전 정보',
+                    style: AppTextStyles.small.copyWith(color: Colors.black),
+                  ),
+                  const SizedBox(width: 7),
+                  Text(
+                    appVersionText,
+                    style: AppTextStyles.small.copyWith(
+                      color: AppColors.text_color2,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TitleRow extends StatelessWidget {
+  const _TitleRow();
+
+  @override
+  Widget build(BuildContext context) {
+    return Text('설정', style: AppTextStyles.subtitle);
+  }
+}
+
+// 전폭 라인 (컨테이너 가로패딩이 없으니 카드 폭 전체를 사용)
+Widget _line() => Container(
+  height: 3,
+  decoration: BoxDecoration(
+    color: AppColors.border,
+    borderRadius: BorderRadius.circular(1),
+  ),
+);
+
+// 그대로 사용
+Widget _tile({required Widget title, VoidCallback? onTap, Widget? trailing}) {
+  return InkWell(
+    onTap: onTap,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 1),
+      child: Row(
+        children: [
+          Expanded(child: title),
+          if (trailing != null) trailing,
+        ],
+      ),
+    ),
+  );
 }

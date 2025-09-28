@@ -22,8 +22,9 @@ class MyPageWidget extends ConsumerStatefulWidget {
 }
 
 class _MyPageWidgetState extends ConsumerState<MyPageWidget> {
-  // ✅ "베젤 포함" 헤더 총 높이를 고정값 393으로 지정
-  static const double _headerTotalHeight = 300.0;
+  static const double _headerTotalHeight = 335.0;
+  static const double _profileTop = 165.0;
+  static const double _countLift = -42.0;
 
   @override
   void initState() {
@@ -37,72 +38,59 @@ class _MyPageWidgetState extends ConsumerState<MyPageWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final statusBar = MediaQuery.of(context).padding.top; // 베젤(상단 안전영역) 높이
-    const headerColor = AppColors.sub;
-
-    // ✅ 실제 헤더 컨테이너(베젤 아래 영역) 높이 = 총 393 - 베젤
-    final double headerBodyHeight = (_headerTotalHeight - statusBar).clamp(
-      0.0,
-      double.infinity,
-    );
+    final double statusBar = MediaQuery.of(context).padding.top;
+    const headerColor = AppColors.main;
 
     return Scaffold(
-      backgroundColor: headerColor, // ⬅️ 헤더색으로 배경 통일
-      body: Column(
-        children: [
-          // ✅ 베젤 영역: 반드시 포함(색 동일)
-          Container(height: statusBar, color: headerColor),
-
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
+      backgroundColor: headerColor,
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            // ───────── 헤더 ─────────
+            Container(
+              width: double.infinity,
+              height: _headerTotalHeight,
+              color: headerColor,
+              padding: EdgeInsets.only(top: statusBar),
+              child: Stack(
                 children: [
-                  // ───────── 헤더 영역 (베젤 제외분) ─────────
-                  Container(
-                    width: double.infinity,
-                    height: headerBodyHeight, // ⬅️ 393 - statusBar
-                    color: headerColor,
-                    child: Stack(
-                      children: [
-                        Positioned(
-                          left: 16,
-                          right: 16,
-                          top: 230, // 기존 배치 유지 (필요시 여기만 미세 조정)
-                          child: const UserProfileWidget(),
-                        ),
-                      ],
-                    ),
+                  // 프로필 카드
+                  const Positioned(
+                    left: 16,
+                    right: 16,
+                    top: _profileTop,
+                    child: UserProfileWidget(),
                   ),
 
-                  // ───────── 본문 영역 (배경 = background) ─────────
-                  Container(
-                    width: double.infinity,
-                    color: AppColors.background,
-                    child: Column(
-                      children: [
-                        Transform.translate(
-                          offset: const Offset(0, -34),
-                          child: const SpaceStudyCountWidget(),
-                        ),
-                        const SizedBox(height: 0),
-                        const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 16),
-                          child: MyPageStudyRecordWidget(),
-                        ),
-                        const SizedBox(height: 16),
-                        const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 16),
-                          child: SettingSection(),
-                        ),
-                        const SizedBox(height: 24),
-                      ],
-                    ),
-                  ),
+                  // PNG 아이콘 추가
                 ],
               ),
             ),
-          ),
-        ],
+
+            // ───────── 본문 영역 ─────────
+            Container(
+              width: double.infinity,
+              color: AppColors.background,
+              child: Transform.translate(
+                offset: const Offset(0, _countLift),
+                child: Column(
+                  children: const [
+                    SpaceStudyCountWidget(),
+                    SizedBox(height: 20),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16),
+                      child: MyPageStudyRecordWidget(),
+                    ),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16),
+                      child: SettingSection(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

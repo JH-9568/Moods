@@ -16,6 +16,9 @@ import 'features/home/widget/study_record/home_record_service.dart';
 import 'features/my_page/space_count/space_count_controller.dart';
 import 'features/my_page/space_count/space_count_service.dart';
 import 'package:moods/features/my_page/user_profile/user_profile_service.dart';
+import 'package:moods/features/calendar/calendar_controller.dart';
+import 'package:moods/features/calendar/calendar_service.dart';
+import 'package:moods/features/calendar/dropdown/calendar_header.dart';
 // ===================== Account (탈퇴) =====================
 import 'features/my_page/setting/account_delete/account_delete_service.dart';
 
@@ -171,3 +174,21 @@ final accountServiceProvider = Provider<AccountService>((ref) {
     client: client,
   );
 });
+
+// Calendar Service Provider
+final calendarServiceProvider = Provider<CalendarService>((ref) {
+  final client = ref.read(authHttpClientProvider); // 토큰 자동부착 클라이언트
+  return CalendarService(getJwt: () => '', client: client);
+});
+
+// Calendar Controller Provider
+final calendarControllerProvider =
+    StateNotifierProvider<CalendarController, CalendarState>((ref) {
+      final svc = ref.read(calendarServiceProvider);
+      return CalendarController(service: svc); // ← 생성자 named param
+    });
+
+// 현재 선택된 연/월
+final selectedYearMonthProvider = StateProvider<YearMonth>(
+  (ref) => YearMonth.now(),
+);

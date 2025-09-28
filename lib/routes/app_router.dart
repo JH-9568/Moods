@@ -50,7 +50,7 @@ GoRouter createAppRouter() {
   final authStream = supa.auth.onAuthStateChange;
 
   return GoRouter(
-    initialLocation: '/profile',
+    initialLocation: '/home',
     refreshListenable: Listenable.merge([
       GoRouterRefresh(authStream),
       routerPing,

@@ -8,7 +8,8 @@ class AppColors {
   static const border = Color.fromRGBO(241, 232, 226, 1);
   static const sub = Color.fromRGBO(157, 137, 123, 1);
   static const text_color1 = Color.fromRGBO(82, 62, 48, 1);
-  static const text_color2 = Color.fromRGBO(122, 124, 130, 1);
+  static const text_color2 = Color.fromRGBO(130, 126, 122, 1);
+  static const text_color3 = Color.fromRGBO(195, 188, 181, 1);
   //  Default
   static const Color white = Color(0xFFFFFFFF);
   static const Color black = Color(0xFF000000);
