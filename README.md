@@ -1,6 +1,6 @@
 # moods
 
-A new Flutter project.
+Artistic Software Project : Moods
 
 ## Getting Started
 
