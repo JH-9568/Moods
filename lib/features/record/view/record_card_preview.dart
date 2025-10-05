@@ -13,6 +13,22 @@ import 'package:moods/features/my_page/space_count/space_count_controller.dart';
 import 'package:moods/features/home/widget/study_time/study_time_controller.dart';
 import 'package:moods/features/home/widget/my_ranking/my_ranking_controller.dart';
 
+enum RecordCardPreviewOrigin {
+  creation, // 새 기록카드 생성 직후
+  calendar, // 캘린더에서 열람
+}
+
+@Deprecated('Use showRecordCardPreviewForCreation')
+Future<void> showRecordCardPreview(BuildContext c, RecordCardData d) =>
+    showRecordCardPreviewForCreation(c, d);
+
+@Deprecated('Use showRecordCardPreviewFromCalendarRecordId')
+Future<void> showRecordCardPreviewFromRecordId(
+  BuildContext c,
+  WidgetRef r,
+  String id,
+) => showRecordCardPreviewFromCalendarRecordId(c, r, id);
+
 /// 감정 → 이모지 매핑
 const Map<String, String> _kEmotionEmoji = {
   '기쁨': '😆',
@@ -26,6 +42,7 @@ const Map<String, String> _kEmotionEmoji = {
   '지루함': '🥱',
   '애매모호': '😵‍💫',
 };
+
 const Set<String> _kEmotionSet = {
   '기쁨',
   '보통',
@@ -78,7 +95,11 @@ class RecordCardData {
     );
   }
 
-  factory RecordCardData.fromRecordJson(Map<String, dynamic> rec) {
+  factory RecordCardData.fromRecordJson(Map<String, dynamic> raw) {
+    final Map<String, dynamic> rec = (raw['record'] is Map)
+        ? Map<String, dynamic>.from(raw['record'])
+        : raw;
+
     DateTime _date(dynamic v) {
       try {
         return DateTime.parse(v.toString()).toLocal();
@@ -114,6 +135,7 @@ class RecordCardData {
       if (txt.isNotEmpty && m['done'] == true) goalsDone.add(txt);
     }
 
+    // 감정 문자열 리스트 (없으면 fallback들 시도)
     List<String> emotions = _asList(
       rec['emotions'],
     ).map((e) => e.toString()).toList();
@@ -128,21 +150,36 @@ class RecordCardData {
       }
     }
 
+    // 공간 정보
     Map<String, dynamic> space = _asMap(rec['space']);
     if (space.isEmpty) {
       final spaces = _asList(rec['spaces']);
       if (spaces.isNotEmpty) space = _asMap(spaces.first);
     }
+
     final placeName = (space['name']?.toString() ?? '').trim().isEmpty
         ? '미정'
         : space['name'].toString();
+
     final placeType = (space['type']?.toString() ?? '').trim().isNotEmpty
         ? space['type'].toString()
         : (_asList(space['type_tags']).isNotEmpty
               ? _asList(space['type_tags']).first.toString()
               : '공간');
+
+    // mood는 List/String 둘 다 대응
+    String _moodToString(dynamic v) {
+      if (v is List) {
+        return v
+            .map((e) => e.toString().trim())
+            .where((e) => e.isNotEmpty)
+            .join(', ');
+      }
+      return (v?.toString() ?? '').trim();
+    }
+
     final String placeMood = (() {
-      final s = (space['mood']?.toString() ?? '').trim();
+      final s = _moodToString(space['mood']);
       if (s.isNotEmpty) return s;
       final mt = _asList(
         space['mood_tags'],
@@ -150,34 +187,42 @@ class RecordCardData {
       return mt.isNotEmpty ? mt : '무드 미정';
     })();
 
-    final List<String> tags =
-        (_asList(space['tags']).isNotEmpty
-                ? _asList(space['tags'])
-                : _asList(rec['tags']))
-            .map((e) => e.toString())
-            .toList();
+    final List<String> tags = [];
 
-    // 공간 특징 필드를 UI 태그로 변환
-    final bool power = space['power'] == true || rec['power'] == true;
+    final Map<String, dynamic> tagMap = _asMap(space['tags']);
+    final Map<String, dynamic> fallbackTagMap = _asMap(rec['tags']);
+
+    bool power = false;
+    int wifiScore = 0, noiseLevel = 0, crowdness = 0;
+
+    int _toInt(dynamic v) => (v is int) ? v : int.tryParse('${v ?? 0}') ?? 0;
+
+    if (tagMap.isNotEmpty) {
+      power = tagMap['power'] == true;
+      wifiScore = _toInt(tagMap['wifi_score']);
+      noiseLevel = _toInt(tagMap['noise_level']);
+      crowdness = _toInt(tagMap['crowdness']);
+    } else if (fallbackTagMap.isNotEmpty) {
+      power = fallbackTagMap['power'] == true;
+      wifiScore = _toInt(fallbackTagMap['wifi_score']);
+      noiseLevel = _toInt(fallbackTagMap['noise_level']);
+      crowdness = _toInt(fallbackTagMap['crowdness']);
+    }
+
     if (power) tags.add('콘센트 많음');
-
-    final int wifiScore = (space['wifi_score'] ?? rec['wifi_score'] ?? 0) is int
-        ? (space['wifi_score'] ?? rec['wifi_score'] ?? 0)
-        : 0;
     if (wifiScore >= 4) tags.add('와이파이 퀄리티 좋음');
-
-    final int noiseLevel =
-        (space['noise_level'] ?? rec['noise_level'] ?? 0) is int
-        ? (space['noise_level'] ?? rec['noise_level'] ?? 0)
-        : 0;
     if (noiseLevel == 1) tags.add('소음 낮음');
     if (noiseLevel == 3) tags.add('소음 높음');
-
-    final int crowdness = (space['crowdness'] ?? rec['crowdness'] ?? 0) is int
-        ? (space['crowdness'] ?? rec['crowdness'] ?? 0)
-        : 0;
     if (crowdness == 1) tags.add('자리 많음');
 
+    final listTags = _asList(space['tags']).map((e) => e.toString()).toList();
+    if (listTags.isNotEmpty) {
+      for (final t in listTags) {
+        if (t.trim().isNotEmpty) tags.add(t);
+      }
+    }
+
+    // 배경 이미지
     ImageProvider? background;
     final img = rec['image_url']?.toString();
     if (img != null && img.isNotEmpty) background = NetworkImage(img);
@@ -228,7 +273,6 @@ class RecordCardData {
     final String placeMood = st.selectedMoods.join(', ');
 
     final List<String> tags = [];
-    // state에 저장된 공간 특징 필드를 UI 태그로 변환
     if (st.power == true) tags.add('콘센트 많음');
     if ((st.wifiScore ?? 0) >= 4) tags.add('와이파이 퀄리티 좋음');
     if (st.noiseLevel == 1) tags.add('소음 낮음');
@@ -236,8 +280,6 @@ class RecordCardData {
     if (st.crowdness == 1) tags.add('자리 많음');
 
     ImageProvider? background;
-    // state에는 이미지 URL이 없으므로, 이 부분은 비워두거나 기본 이미지 사용
-    // (사진 업로드는 비동기이므로, 미리보기 시점에는 아직 URL이 없을 수 있음)
 
     return RecordCardData(
       date: date,
@@ -256,23 +298,30 @@ class RecordCardData {
 }
 
 // ───────────────────────────── Overlay ─────────────────────────────
-Future<void> showRecordCardPreview(BuildContext context, RecordCardData data) {
+// 기록 생성 직후(확인 → 홈으로)
+Future<void> showRecordCardPreviewForCreation(
+  BuildContext context,
+  RecordCardData data,
+) {
   return showGeneralDialog(
     context: context,
     barrierDismissible: false,
     barrierColor: Colors.black.withOpacity(0.60),
     transitionDuration: const Duration(milliseconds: 160),
     pageBuilder: (context, _, __) {
-      // Consumer를 사용하여 ref를 전달할 수 있도록 context를 감싸줍니다.
       return Consumer(
-        builder: (context, ref, child) =>
-            _RecordCardOverlay(data: data, ref: ref),
+        builder: (context, ref, __) => _RecordCardOverlay(
+          data: data,
+          ref: ref,
+          origin: RecordCardPreviewOrigin.creation,
+        ),
       );
     },
   );
 }
 
-Future<void> showRecordCardPreviewFromRecordId(
+// 캘린더에서 열람(확인 → 현재 페이지 유지)
+Future<void> showRecordCardPreviewFromCalendarRecordId(
   BuildContext context,
   WidgetRef ref,
   String recordId,
@@ -282,7 +331,6 @@ Future<void> showRecordCardPreviewFromRecordId(
       .getRecordDetail(recordId);
   final data = RecordCardData.fromRecordJson(rec);
 
-  // ✅ returnToCalendar: true 로 설정
   await showGeneralDialog(
     context: context,
     barrierDismissible: false,
@@ -290,8 +338,11 @@ Future<void> showRecordCardPreviewFromRecordId(
     transitionDuration: const Duration(milliseconds: 160),
     pageBuilder: (context, _, __) {
       return Consumer(
-        builder: (context, ref, child) =>
-            _RecordCardOverlay(data: data, ref: ref, returnToCalendar: true),
+        builder: (context, ref, __) => _RecordCardOverlay(
+          data: data,
+          ref: ref,
+          origin: RecordCardPreviewOrigin.calendar,
+        ),
       );
     },
   );
@@ -313,19 +364,20 @@ class RecordCardPreviewScreen extends ConsumerWidget {
 class _RecordCardOverlay extends StatelessWidget {
   final RecordCardData data;
   final WidgetRef ref;
-  final bool returnToCalendar; // ✅ 추가: 캘린더에서 열렸는지 여부
+  final RecordCardPreviewOrigin origin; // ✅ 출처
 
   const _RecordCardOverlay({
     required this.data,
     required this.ref,
-    this.returnToCalendar = false, // 기본값 false (기록 생성 후는 홈 이동)
+    this.origin = RecordCardPreviewOrigin.creation,
   });
 
   void _close(BuildContext context) {
     Navigator.of(context, rootNavigator: true).pop();
   }
 
-  void _closeAndGoHome(BuildContext context, WidgetRef ref) {
+  void _closeAndGoHome(BuildContext context) {
+    // 홈 지표들 무효화
     ref.invalidate(studyTimeControllerProvider);
     ref.invalidate(studyCountControllerProvider);
     ref.invalidate(homeRecordControllerProvider);
@@ -333,7 +385,6 @@ class _RecordCardOverlay extends StatelessWidget {
     ref.invalidate(myRankingControllerProvider);
 
     _close(context);
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (context.mounted) GoRouter.of(context).go('/home');
     });
@@ -341,10 +392,10 @@ class _RecordCardOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ returnToCalendar이면 닫기만, 아니면 홈으로
-    final onConfirm = returnToCalendar
-        ? () => _close(context)
-        : () => _closeAndGoHome(context, ref);
+    final VoidCallback onConfirm = (origin == RecordCardPreviewOrigin.calendar)
+        ? () =>
+              _close(context) // 🔹 캘린더: 닫고 그대로 유지
+        : () => _closeAndGoHome(context); // 🔹 생성 직후: 홈으로
 
     return Center(
       child: Material(
@@ -408,7 +459,7 @@ class _RecordCard extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // 배경 이미지 + 전체 딤(조금 더 투명)
+          // 배경 이미지 + 전체 딤
           DecoratedBox(
             decoration: BoxDecoration(
               image: DecorationImage(image: bg, fit: BoxFit.cover),
@@ -416,7 +467,7 @@ class _RecordCard extends StatelessWidget {
           ),
           Container(color: Colors.black.withOpacity(0.18)),
 
-          // 상/하단 그라데이션(진하기 완화)
+          // 상단 그라데이션
           Align(
             alignment: Alignment.topCenter,
             child: Container(
@@ -430,6 +481,7 @@ class _RecordCard extends StatelessWidget {
               ),
             ),
           ),
+          // 하단 그라데이션
           Align(
             alignment: Alignment.bottomCenter,
             child: Container(
@@ -445,7 +497,6 @@ class _RecordCard extends StatelessWidget {
           ),
 
           Padding(
-            // 타이틀/공유/다운로드가 카드 상단에서 30px
             padding: const EdgeInsets.fromLTRB(16, 30, 16, 16),
             child: Column(
               children: [
@@ -484,16 +535,14 @@ class _RecordCard extends StatelessWidget {
                   ),
                 ),
 
-                // 타이틀 ↔ 날짜 52px
                 const SizedBox(height: 52),
 
-                // 날짜~총시간 블록을 134px 고정.
+                // 날짜~총시간
                 SizedBox(
                   height: 134,
                   child: Stack(
                     clipBehavior: Clip.none,
                     children: [
-                      // 날짜: 맨 위
                       Positioned.fill(
                         child: Align(
                           alignment: Alignment.topCenter,
@@ -506,7 +555,6 @@ class _RecordCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                      // 큰 시간: 중앙보다 위로
                       Positioned.fill(
                         child: Align(
                           alignment: const Alignment(0, -0.45),
@@ -519,7 +567,6 @@ class _RecordCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                      // 하단 3줄: 아래쪽에 촘촘히
                       Positioned(
                         left: 0,
                         right: 0,
@@ -562,7 +609,7 @@ class _RecordCard extends StatelessWidget {
 
                 const Spacer(),
 
-                // 패널 #1 — 감정칩 하단 고정 (더 투명하게)
+                // 패널 #1 — 타이틀/목표/감정
                 Center(
                   child: _FrostedPanel(
                     width: 291,
@@ -616,7 +663,7 @@ class _RecordCard extends StatelessWidget {
 
                 const SizedBox(height: 10),
 
-                // 패널 #2 — 칩 가로 스크롤 (동일한 투명도)
+                // 패널 #2 — 공간 정보/특징 칩
                 Center(
                   child: _FrostedPanel(
                     width: 291,
@@ -675,10 +722,8 @@ class _RecordCard extends StatelessWidget {
                   ),
                 ),
 
-                // 박스 ↔ 확인 버튼 22px
                 const SizedBox(height: 22),
 
-                // 확인 버튼
                 SizedBox(
                   width: 297,
                   height: 50,
@@ -711,10 +756,9 @@ class _FrostedPanel extends StatelessWidget {
   final EdgeInsetsGeometry? padding;
   final Widget child;
 
-  // ▶ 투명도/블러 조절 파라미터(기본값도 기존보다 더 투명)
-  final double blurSigma; // 기본 12 → 7
-  final double overlayOpacity; // 기본 0.15 → 0.10
-  final double borderOpacity; // 기본 0.10 → 0.06
+  final double blurSigma;
+  final double overlayOpacity;
+  final double borderOpacity;
 
   const _FrostedPanel({
     required this.width,
@@ -816,7 +860,6 @@ class _GoalCheck extends StatelessWidget {
   }
 }
 
-/// 감정 칩 – Main2 배경, 검정 텍스트
 class _EmojiPill extends StatelessWidget {
   final String label;
   const _EmojiPill({required this.label});
@@ -839,7 +882,6 @@ class _EmojiPill extends StatelessWidget {
   }
 }
 
-/// 공간 특징 칩 – Main2 배경, 검정 텍스트, 고정 높이 21 (정중앙 정렬)
 class _TagPill extends StatelessWidget {
   final String label;
   const _TagPill({required this.label});
