@@ -36,7 +36,16 @@ class Dimens {
 
 /// 감정/태그 고정 리스트
 const _EMOTION_TAGS = <String>[
-  '기쁨', '보통', '슬픔', '화남', '아픔', '멘붕', '설렘', '피곤', '지루함', '애매모호',
+  '기쁨',
+  '보통',
+  '슬픔',
+  '화남',
+  '아픔',
+  '멘붕',
+  '설렘',
+  '피곤',
+  '지루함',
+  '애매모호',
 ];
 
 const _EMOJI = <String, String>{
@@ -53,7 +62,11 @@ const _EMOJI = <String, String>{
 };
 
 const _PLACE_FEATURES = <String>[
-  '콘센트 많음', '와이파이 퀄리티 좋음', '소음 높음', '소음 낮음', '자리 많음',
+  '콘센트 많음',
+  '와이파이 퀄리티 좋음',
+  '소음 높음',
+  '소음 낮음',
+  '자리 많음',
 ];
 
 /// export 응답에서 record_id 추출
@@ -83,7 +96,10 @@ String _joinTags(dynamic v) {
   if (v == null) return '';
   if (v is List) {
     return v
-        .map((e) => e is Map ? (e['name']?.toString() ?? e.toString()) : e.toString())
+        .map(
+          (e) =>
+              e is Map ? (e['name']?.toString() ?? e.toString()) : e.toString(),
+        )
         .where((s) => s.trim().isNotEmpty)
         .join(', ');
   }
@@ -126,171 +142,175 @@ class _FinalizeStep2ScreenState extends ConsumerState<FinalizeStep2Screen> {
 
   // ── actions ───────────────────────────────────────────────────────────────
   Future<void> _pickImage(ImageSource source) async {
-  if (_uploading) return;
-  try {
-    final pickedFile = await _picker.pickImage(source: source, imageQuality: 92);
-    if (pickedFile == null) return;
-
-    // 미리보기만 표시
-    if (!mounted) return;
-    setState(() {
-      _image = pickedFile;
-      _uploading = false;
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('사진이 선택되었습니다. 생성 시 함께 업로드됩니다.')),
-    );
-  } catch (e) {
-    if (!mounted) return;
-    setState(() => _uploading = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('사진 선택 실패: $e')),
-    );
-  }
-}
-
-
-Future<void> _submit() async {
-  setState(() => _submitting = true);
-  try {
-    // 공간 필수
-    if (_selectedSpaceId == null || _selectedSpaceId!.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('지도를 열어 공간을 선택해 주세요.')),
+    if (_uploading) return;
+    try {
+      final pickedFile = await _picker.pickImage(
+        source: source,
+        imageQuality: 92,
       );
-      return;
+      if (pickedFile == null) return;
+
+      // 미리보기만 표시
+      if (!mounted) return;
+      setState(() {
+        _image = pickedFile;
+        _uploading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('사진이 선택되었습니다. 생성 시 함께 업로드됩니다.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _uploading = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('사진 선택 실패: $e')));
     }
-
-    // ─────────────────────────────────────────────
-    // 공간특징 칩 → API 필드로 매핑
-    // ─────────────────────────────────────────────
-    final bool power = _selectedPlaceTags.contains('콘센트 많음');
-
-    // 와이파이 퀄리티가 좋음이면 스코어 4로 가정(스펙에 맞게 조정 가능)
-    final int? wifiScore =
-        _selectedPlaceTags.contains('와이파이 퀄리티 좋음') ? 4 : null;
-
-    // 소음: 낮음=1, 보통=2, 높음=3 (둘 다 선택되면 충돌 → 2로 강제)
-    int? noiseLevel;
-    final bool noiseLow = _selectedPlaceTags.contains('소음 낮음');
-    final bool noiseHigh = _selectedPlaceTags.contains('소음 높음');
-    if (noiseLow && !noiseHigh) {
-      noiseLevel = 1;
-    } else if (!noiseLow && noiseHigh) {
-      noiseLevel = 3;
-    } else if (noiseLow && noiseHigh) {
-      noiseLevel = 2; // 충돌 시 보통 처리
-    } else {
-      noiseLevel = null; // 미선택이면 서버 기본값 사용
-    }
-
-    // 혼잡도: 자리 많음이면 여유=1 (그 외 미선택이면 null)
-    final int? crowdness =
-        _selectedPlaceTags.contains('자리 많음') ? 1 : null;
-
-    final notifier = ref.read(recordControllerProvider.notifier);
-
-    // 화면 메타 로컬 반영 + 서버로 보낼 값
-    notifier.applyFinalizeMeta(
-      title: _titleCtrl.text.trim().isEmpty ? '공부 기록' : _titleCtrl.text.trim(),
-      emotionTagIds: _selectedEmotions.toList(), // 서버가 라벨 받는 스펙
-      spaceId: _selectedSpaceId!,
-      // ↓↓↓ 공간특징 필드 추가
-      wifiScore: wifiScore,
-      noiseLevel: noiseLevel,
-      crowdness: crowdness,
-      power: power,
-    );
-
-    // 1) 기록 생성
-    final resp = await notifier.exportToRecord();
-    final ok = resp['success'] == true;
-    if (!ok) throw Exception('서버 응답이 올바르지 않습니다: $resp');
-
-    // 2) record_id
-    final recordId = _recordIdFromResp(resp);
-
-    // 3) 사진 업로드(있으면)
-    if (_image != null) {
-      try {
-        await notifier.uploadRecordPhoto(recordId, File(_image!.path));
-      } catch (e) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('사진 업로드 실패: $e')),
-        );
-      }
-    }
-
-    // 4) 상세조회 값으로 미리보기 (서버에서 이미지 URL 포함 최종 데이터 조회)
-    await showRecordCardPreviewFromRecordId(context, ref, recordId);
-
-  } catch (e) {
-    if (mounted) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('생성 실패: $e')));
-    }
-  } finally {
-    if (mounted) setState(() => _submitting = false);
   }
-}
 
+  Future<void> _submit() async {
+    setState(() => _submitting = true);
+    try {
+      // 공간 필수
+      if (_selectedSpaceId == null || _selectedSpaceId!.isEmpty) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('지도를 열어 공간을 선택해 주세요.')));
+        return;
+      }
+
+      // ─────────────────────────────────────────────
+      // 공간특징 칩 → API 필드로 매핑
+      // ─────────────────────────────────────────────
+      final bool power = _selectedPlaceTags.contains('콘센트 많음');
+
+      // 와이파이 퀄리티가 좋음이면 스코어 4로 가정(스펙에 맞게 조정 가능)
+      final int? wifiScore = _selectedPlaceTags.contains('와이파이 퀄리티 좋음')
+          ? 4
+          : null;
+
+      // 소음: 낮음=1, 보통=2, 높음=3 (둘 다 선택되면 충돌 → 2로 강제)
+      int? noiseLevel;
+      final bool noiseLow = _selectedPlaceTags.contains('소음 낮음');
+      final bool noiseHigh = _selectedPlaceTags.contains('소음 높음');
+      if (noiseLow && !noiseHigh) {
+        noiseLevel = 1;
+      } else if (!noiseLow && noiseHigh) {
+        noiseLevel = 3;
+      } else if (noiseLow && noiseHigh) {
+        noiseLevel = 2; // 충돌 시 보통 처리
+      } else {
+        noiseLevel = null; // 미선택이면 서버 기본값 사용
+      }
+
+      // 혼잡도: 자리 많음이면 여유=1 (그 외 미선택이면 null)
+      final int? crowdness = _selectedPlaceTags.contains('자리 많음') ? 1 : null;
+
+      final notifier = ref.read(recordControllerProvider.notifier);
+
+      // 화면 메타 로컬 반영 + 서버로 보낼 값
+      notifier.applyFinalizeMeta(
+        title: _titleCtrl.text.trim().isEmpty
+            ? '공부 기록'
+            : _titleCtrl.text.trim(),
+        emotionTagIds: _selectedEmotions.toList(), // 서버가 라벨 받는 스펙
+        spaceId: _selectedSpaceId!,
+        // ↓↓↓ 공간특징 필드 추가
+        wifiScore: wifiScore,
+        noiseLevel: noiseLevel,
+        crowdness: crowdness,
+        power: power,
+      );
+
+      // 1) 기록 생성
+      final resp = await notifier.exportToRecord();
+      final ok = resp['success'] == true;
+      if (!ok) throw Exception('서버 응답이 올바르지 않습니다: $resp');
+
+      // 2) record_id
+      final recordId = _recordIdFromResp(resp);
+
+      // 3) 사진 업로드(있으면)
+      if (_image != null) {
+        try {
+          await notifier.uploadRecordPhoto(recordId, File(_image!.path));
+        } catch (e) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('사진 업로드 실패: $e')));
+        }
+      }
+
+      // 3) 사진 업로드(있으면) — 그대로 유지
+
+// 4) 상세조회 -> 미리보기 (생성 직후용: 확인 누르면 /home)
+final detail = await notifier.getRecordDetail(recordId);
+final previewData = RecordCardData.fromRecordJson(detail);
+await showRecordCardPreviewForCreation(context, previewData);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('생성 실패: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
 
   // ── UI builders (섹션별) ───────────────────────────────────────────────────
   Widget _sectionHeader() => const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '기록할 정보를',
-            style: TextStyle(
-              fontSize: Dimens.headerFontSize,
-              fontWeight: Dimens.headerWeight,
-              color: AppColorsJ.black,
-            ),
-          ),
-          Text(
-            '입력해 주세요',
-            style: TextStyle(
-              fontSize: Dimens.headerFontSize,
-              fontWeight: Dimens.headerWeight,
-              color: AppColorsJ.black,
-            ),
-          ),
-        ],
-      );
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        '기록할 정보를',
+        style: TextStyle(
+          fontSize: Dimens.headerFontSize,
+          fontWeight: Dimens.headerWeight,
+          color: AppColorsJ.black,
+        ),
+      ),
+      Text(
+        '입력해 주세요',
+        style: TextStyle(
+          fontSize: Dimens.headerFontSize,
+          fontWeight: Dimens.headerWeight,
+          color: AppColorsJ.black,
+        ),
+      ),
+    ],
+  );
 
   Widget _sectionTitleInput() => const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _FieldLabel('제목'),
-          SizedBox(height: 8),
-        ],
-      );
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [_FieldLabel('제목'), SizedBox(height: 8)],
+  );
 
   Widget _sectionEmotion() => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const _FieldLabel('감정'),
-          const SizedBox(height: 2),
-          const Text(
-            '공부할 때 어떤 감정을 느꼈나요?',
-            style: TextStyle(fontSize: 12, color: AppColorsJ.gray6),
-          ),
-          const SizedBox(height: 12),
-          _EmotionGrid(
-            tags: _EMOTION_TAGS,
-            selected: _selectedEmotions,
-            onToggle: (e) {
-              setState(() {
-                _selectedEmotions.contains(e)
-                    ? _selectedEmotions.remove(e)
-                    : _selectedEmotions.add(e);
-              });
-            },
-          ),
-        ],
-      );
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const _FieldLabel('감정'),
+      const SizedBox(height: 2),
+      const Text(
+        '공부할 때 어떤 감정을 느꼈나요?',
+        style: TextStyle(fontSize: 12, color: AppColorsJ.gray6),
+      ),
+      const SizedBox(height: 12),
+      _EmotionGrid(
+        tags: _EMOTION_TAGS,
+        selected: _selectedEmotions,
+        onToggle: (e) {
+          setState(() {
+            _selectedEmotions.contains(e)
+                ? _selectedEmotions.remove(e)
+                : _selectedEmotions.add(e);
+          });
+        },
+      ),
+    ],
+  );
 
   Widget _sectionImagePicker() {
     if (_image == null) {
@@ -319,85 +339,87 @@ Future<void> _submit() async {
   }
 
   Widget _sectionSpacePicker() => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const _FieldLabel('공간'),
+      const SizedBox(height: 8),
+      Row(
         children: [
-          const _FieldLabel('공간'),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  elevation: 0,
-                  backgroundColor: AppColorsJ.main3,
-                  foregroundColor: Colors.white,
-                  fixedSize: const Size(120, 40),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                onPressed: () async {
-                  final picked = await Navigator.push<SelectedPlace>(
-                    context,
-                    MaterialPageRoute(builder: (_) => const MapSelectPage()),
-                  );
-                  if (picked != null) {
-                    setState(() {
-                      _spaceCtrl.text = picked.name;
-                      _selectedSpaceId = picked.placeId;
-                    });
-                  }
-                },
-                child: const Text('지도에서 선택',
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              elevation: 0,
+              backgroundColor: AppColorsJ.main3,
+              foregroundColor: Colors.white,
+              fixedSize: const Size(120, 40),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
               ),
-            ],
+            ),
+            onPressed: () async {
+              final picked = await Navigator.push<SelectedPlace>(
+                context,
+                MaterialPageRoute(builder: (_) => const MapSelectPage()),
+              );
+              if (picked != null) {
+                setState(() {
+                  _spaceCtrl.text = picked.name;
+                  _selectedSpaceId = picked.placeId;
+                });
+              }
+            },
+            child: const Text(
+              '지도에서 선택',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+            ),
           ),
-          const SizedBox(height: 10),
-          _InputBox.text(controller: _spaceCtrl, hint: '지도로 선택하세요', readOnly: true),
         ],
-      );
+      ),
+      const SizedBox(height: 10),
+      _InputBox.text(controller: _spaceCtrl, hint: '지도로 선택하세요', readOnly: true),
+    ],
+  );
 
   Widget _sectionPlaceFeatures() => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const _FieldLabel('공간 특징'),
-          const SizedBox(height: 2),
-          const Text(
-            '공부에 도움되는 공간의 특징을 정리해보세요.',
-            style: TextStyle(fontSize: 12, color: AppColorsJ.gray6),
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _PLACE_FEATURES.map((t) {
-              final on = _selectedPlaceTags.contains(t);
-              return ChoiceChip(
-                label: Text(
-                  t,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: on ? Colors.white : AppColorsJ.black,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                selected: on,
-                onSelected: (_) {
-                  setState(() {
-                    on ? _selectedPlaceTags.remove(t) : _selectedPlaceTags.add(t);
-                  });
-                },
-                showCheckmark: false,
-                backgroundColor: Colors.white,
-                selectedColor: AppColorsJ.main3,
-                side: const BorderSide(color: AppColorsJ.main2),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                shape: const StadiumBorder(),
-              );
-            }).toList(),
-          ),
-        ],
-      );
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const _FieldLabel('공간 특징'),
+      const SizedBox(height: 2),
+      const Text(
+        '공부에 도움되는 공간의 특징을 정리해보세요.',
+        style: TextStyle(fontSize: 12, color: AppColorsJ.gray6),
+      ),
+      const SizedBox(height: 10),
+      Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: _PLACE_FEATURES.map((t) {
+          final on = _selectedPlaceTags.contains(t);
+          return ChoiceChip(
+            label: Text(
+              t,
+              style: TextStyle(
+                fontSize: 14,
+                color: on ? Colors.white : AppColorsJ.black,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            selected: on,
+            onSelected: (_) {
+              setState(() {
+                on ? _selectedPlaceTags.remove(t) : _selectedPlaceTags.add(t);
+              });
+            },
+            showCheckmark: false,
+            backgroundColor: Colors.white,
+            selectedColor: AppColorsJ.main3,
+            side: const BorderSide(color: AppColorsJ.main2),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            shape: const StadiumBorder(),
+          );
+        }).toList(),
+      ),
+    ],
+  );
 
   // ── build ─────────────────────────────────────────────────────────────────
   @override
@@ -415,12 +437,19 @@ Future<void> _submit() async {
         surfaceTintColor: Colors.transparent,
         bottom: const PreferredSize(
           preferredSize: Size.fromHeight(1.0),
-          child: SizedBox(height: 1.0, child: ColoredBox(color: AppColorsJ.main2)),
+          child: SizedBox(
+            height: 1.0,
+            child: ColoredBox(color: AppColorsJ.main2),
+          ),
         ),
         centerTitle: true,
         title: const Text(
           '기록하기',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColorsJ.black),
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: AppColorsJ.black,
+          ),
         ),
         leading: IconButton(
           icon: const Icon(Icons.close, color: AppColorsJ.black),
@@ -437,7 +466,10 @@ Future<void> _submit() async {
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(
-          Dimens.bodyHPad, Dimens.bodyTopPad, Dimens.bodyHPad, 16,
+          Dimens.bodyHPad,
+          Dimens.bodyTopPad,
+          Dimens.bodyHPad,
+          16,
         ),
         children: [
           _sectionHeader(),
@@ -463,10 +495,13 @@ Future<void> _submit() async {
             height: 56,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor:
-                    (_submitting || _uploading) ? AppColorsJ.gray3Normal : AppColorsJ.main3,
+                backgroundColor: (_submitting || _uploading)
+                    ? AppColorsJ.gray3Normal
+                    : AppColorsJ.main3,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
               ),
               onPressed: (_submitting || _uploading) ? null : _submit,
               child: const Text(
@@ -569,7 +604,9 @@ class _DialogBigButton extends StatelessWidget {
           backgroundColor: bg,
           foregroundColor: Colors.white,
           elevation: 0,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         ),
         onPressed: () => Navigator.of(context).pop(isQuit),
@@ -715,8 +752,11 @@ class _FieldLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style:
-          const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColorsJ.black),
+      style: const TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w700,
+        color: AppColorsJ.black,
+      ),
     );
   }
 }
