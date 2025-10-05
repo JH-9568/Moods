@@ -1,82 +1,212 @@
 // lib/features/calendar/calendar_controller.dart
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:moods/features/calendar/calendar_service.dart'; // ← CalendarService / CalendarDayBucket 정의
+import 'package:moods/features/calendar/calendar_service.dart';
 
-/// 화면 상태
+/// ===== Model =====
+class CalendarRecord {
+  final String recordId;
+  final DateTime date;
+  final String title;
+  final int durationSeconds;
+  final String spaceName;
+  final Map<String, dynamic> raw;
+
+  const CalendarRecord({
+    required this.recordId,
+    required this.date,
+    required this.title,
+    required this.durationSeconds,
+    required this.spaceName,
+    required this.raw,
+  });
+}
+
+/// ===== Safe parsers =====
+int _asInt(dynamic v, [int fallback = 0]) {
+  if (v is int) return v;
+  if (v is num) return v.toInt();
+  if (v is String) return int.tryParse(v) ?? fallback;
+  return fallback;
+}
+
+String _asString(dynamic v) => v?.toString() ?? '';
+
+DateTime _asDateLocal(dynamic v) {
+  try {
+    return DateTime.parse(v.toString()).toLocal();
+  } catch (_) {
+    return DateTime.now();
+  }
+}
+
+Map<String, dynamic> _asMap(dynamic v) {
+  if (v is Map<String, dynamic>) return v;
+  if (v is Map) return Map<String, dynamic>.from(v);
+  if (v is String) {
+    try {
+      final d = jsonDecode(v);
+      if (d is Map) return Map<String, dynamic>.from(d);
+    } catch (_) {}
+  }
+  return <String, dynamic>{};
+}
+
+/// 매핑
+CalendarRecord mapToCalendarRecord(Map<String, dynamic> m) {
+  final rec = _asMap(m['record'] ?? m);
+
+  final recordId = _asString(rec['record_id'] ?? rec['id']);
+  final title = _asString(rec['title'] ?? '공부 기록');
+
+  final dateStr =
+      rec['date'] ??
+      rec['end_time'] ??
+      rec['created_at'] ??
+      DateTime.now().toIso8601String();
+  final date = _asDateLocal(dateStr);
+
+  int seconds = 0;
+  final rawDur =
+      rec['duration'] ??
+      rec['total_seconds'] ??
+      rec['net_seconds'] ??
+      rec['total_time'] ??
+      rec['net_time'];
+  if (rawDur is num) seconds = rawDur.round();
+  if (rawDur is String) seconds = (double.tryParse(rawDur) ?? 0).round();
+
+  final space = _asMap(rec['space']);
+  final spaceName = _asString(space['name'] ?? rec['space_name'] ?? '');
+
+  return CalendarRecord(
+    recordId: recordId,
+    date: date,
+    title: title.isNotEmpty ? title : '공부 기록',
+    durationSeconds: seconds,
+    spaceName: spaceName,
+    raw: rec,
+  );
+}
+
+/// ===== State =====
 class CalendarState {
-  final bool loading; // 로딩 중?
-  final bool loadedOnce; // 최소 1회 로드 성공했는지
-  final String? error; // 에러 메시지(없으면 null)
-  final List<CalendarDayBucket> items; // 서비스에서 내려준 일자별 카드 버킷
+  final DateTime month; // 기준 월(1일)
+  final bool loading;
+  final List<CalendarRecord> records;
+  final String? error;
 
   const CalendarState({
-    required this.loading,
-    required this.loadedOnce,
-    required this.error,
-    required this.items,
+    required this.month,
+    this.loading = false,
+    this.records = const [],
+    this.error,
   });
 
-  factory CalendarState.initial() => const CalendarState(
-    loading: false,
-    loadedOnce: false,
-    error: null,
-    items: <CalendarDayBucket>[],
-  );
-
   CalendarState copyWith({
+    DateTime? month,
     bool? loading,
-    bool? loadedOnce,
-    String? error, // null을 그대로 주면 유지, 빈 문자열 주면 에러 해제하고싶을땐 ''
-    List<CalendarDayBucket>? items,
+    List<CalendarRecord>? records,
+    String? error,
   }) {
     return CalendarState(
+      month: month ?? this.month,
       loading: loading ?? this.loading,
-      loadedOnce: loadedOnce ?? this.loadedOnce,
-      error: error == null ? this.error : (error.isEmpty ? null : error),
-      items: items ?? this.items,
+      records: records ?? this.records,
+      error: error,
     );
   }
 }
 
-/// 캘린더 컨트롤러
+/// ===== Controller (Provider는 providers.dart에서만 정의!) =====
 class CalendarController extends StateNotifier<CalendarState> {
-  final CalendarService service;
+  final Ref ref;
+  final CalendarService _svc;
 
-  /// ✅ 해결 A: named parameter `service`
-  CalendarController({required this.service}) : super(CalendarState.initial());
+  bool _fetching = false;
+  DateTime? _requestedMonth;
+  DateTime? _inFlightMonth;
 
-  /// 첫 진입 때만 로드
-  Future<void> loadIfNeeded() async {
-    if (state.loading || state.loadedOnce) return;
-    await load();
+  CalendarController(this.ref, this._svc, {required DateTime initialMonth})
+    : super(CalendarState(month: initialMonth));
+
+  String formatHHMM(int seconds) {
+    final total = seconds < 0 ? 0 : seconds;
+    final h = total ~/ 3600;
+    final m = (total % 3600) ~/ 60;
+    String two(int v) => v.toString().padLeft(2, '0');
+    return '${two(h)}시간 ${two(m)}분';
   }
 
-  /// 강제 새로고침
-  Future<void> refresh() => load();
+  Future<void> changeMonth(DateTime month) async {
+    final first = DateTime(month.year, month.month, 1);
+    if (state.month.year == first.year && state.month.month == first.month)
+      return;
 
-  /// 실제 로드
-  Future<void> load() async {
-    try {
-      state = state.copyWith(loading: true, error: '', items: null);
-      print('[CalendarController] load() start');
+    state = state.copyWith(month: first);
+    _requestedMonth = first;
 
-      final data = await service.fetchRecentVisits();
-      print('[CalendarController] fetched ${data.length} buckets');
-
-      state = state.copyWith(
-        loading: false,
-        loadedOnce: true,
-        error: '',
-        items: data,
-      );
-      print('[CalendarController] load() success');
-    } catch (e, st) {
-      print('[CalendarController] load() error: $e\n$st');
-      state = state.copyWith(
-        loading: false,
-        loadedOnce: state.loadedOnce, // 이전 성공 여부는 유지
-        error: e.toString(),
-      );
+    if (!_fetching) {
+      await _fetchLatest();
     }
+  }
+
+  Future<void> fetchMonth() async {
+    _requestedMonth = state.month;
+    if (!_fetching) {
+      await _fetchLatest();
+    }
+  }
+
+  Future<void> _fetchLatest() async {
+    if (_requestedMonth == null) return;
+    if (_fetching && _inFlightMonth == _requestedMonth) return;
+
+    final target = _requestedMonth!;
+    _inFlightMonth = target;
+    _fetching = true;
+    state = state.copyWith(loading: true, error: null);
+
+    try {
+      final from = target;
+      final to = DateTime(
+        from.year,
+        from.month + 1,
+        1,
+      ).subtract(const Duration(seconds: 1));
+      final list = await _svc.fetchCalendarRange(from: from, to: to);
+
+      final records = list.map(mapToCalendarRecord).toList()
+        ..sort((a, b) => a.date.compareTo(b.date));
+
+      state = state.copyWith(loading: false, records: records);
+    } catch (e, st) {
+      debugPrint('[Calendar][ERROR] $e');
+      debugPrintStack(stackTrace: st);
+      state = state.copyWith(loading: false, error: e.toString());
+    } finally {
+      _fetching = false;
+      if (_requestedMonth != _inFlightMonth) {
+        await _fetchLatest();
+      } else {
+        _inFlightMonth = null;
+      }
+    }
+  }
+
+  List<CalendarRecord> recordsOfDay(DateTime day) {
+    final y = day.year, m = day.month, d = day.day;
+    return state.records
+        .where((r) => r.date.year == y && r.date.month == m && r.date.day == d)
+        .toList();
+  }
+
+  int totalSecondsOfMonth() {
+    var sum = 0;
+    for (final r in state.records) {
+      sum += (r.durationSeconds > 0 ? r.durationSeconds : 0);
+    }
+    return sum;
   }
 }

@@ -1,4 +1,6 @@
+// lib/features/calendar/calendar_widget.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:moods/common/constants/colors.dart';
@@ -6,165 +8,158 @@ import 'package:moods/common/constants/text_styles.dart';
 import 'package:moods/features/calendar/widget/calendar_day_cell.dart';
 import 'package:moods/features/calendar/dropdown/calendar_header.dart'
     show CalendarHeader, YearMonth;
-import 'package:moods/features/calendar/dropdown/calendar_date_picker.dart'
-    show showCalendarDatePicker;
 
-// 너희 컨트롤러/상태
-import 'package:moods/features/calendar/calendar_controller.dart';
-import 'package:moods/features/calendar/calendar_service.dart'
-    show CalendarVisitItem;
-import 'package:moods/providers.dart'; // calendarControllerProvider 가 여기 있다면
+// 모델은 컨트롤러 파일에서, 프로바이더는 providers.dart에서 가져오기
+import 'package:moods/features/calendar/calendar_controller.dart'
+    show CalendarRecord;
+import 'package:moods/providers.dart'
+    show calendarControllerProvider, authTokenProvider;
 
-/// 달력 전체 위젯 (상단 헤더 + 요일행 + 달력 그리드)
+import 'package:moods/features/record/view/record_card_preview.dart';
+
+const bool _verboseCalendarUILog = false;
+
 class CalendarWidget extends ConsumerStatefulWidget {
   const CalendarWidget({super.key});
-
   @override
   ConsumerState<CalendarWidget> createState() => _CalendarWidgetState();
 }
 
 class _CalendarWidgetState extends ConsumerState<CalendarWidget> {
   YearMonth _ym = YearMonth.now();
+  static const double _cellWidth = 52;
+  static const double _cellHeight = 108;
+
+  ProviderSubscription<String?>? _tokenSub;
 
   @override
   void initState() {
     super.initState();
-    // 첫 진입 1회 로드
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      ref.read(calendarControllerProvider.notifier).loadIfNeeded();
+      final token = ref.read(authTokenProvider);
+      if (token != null && token.isNotEmpty) {
+        ref.read(calendarControllerProvider.notifier).fetchMonth();
+        return;
+      }
+      _tokenSub = ref.listenManual<String?>(authTokenProvider, (prev, next) {
+        if (next != null && next.isNotEmpty) {
+          ref.read(calendarControllerProvider.notifier).fetchMonth();
+          _tokenSub?.close();
+          _tokenSub = null;
+        }
+      });
     });
   }
 
   @override
-  Widget build(BuildContext context) {
-    final state = ref.watch(calendarControllerProvider);
+  void dispose() {
+    _tokenSub?.close();
+    super.dispose();
+  }
 
-    // 컨트롤러에서 받은 전체 버킷 → 현재 월에 해당하는 것만 필터
-    final monthBuckets = state.items.where(
-      (b) => b.date.year == _ym.year && b.date.month == _ym.month,
+  @override
+  Widget build(BuildContext context) {
+    final ctrl = ref.read(calendarControllerProvider.notifier);
+
+    // records만 구독 → 리빌드 최소화
+    final records = ref.watch(
+      calendarControllerProvider.select((s) => s.records),
     );
 
-    // 날짜 → 그 날의 아이템들 맵
-    final Map<int, List<CalendarVisitItem>> dayMap = {};
-    for (final b in monthBuckets) {
-      dayMap[b.date.day] = b.items;
+    final monthRecords = records.where(
+      (r) => r.date.year == _ym.year && r.date.month == _ym.month,
+    );
+
+    if (_verboseCalendarUILog && kDebugMode) {
+      debugPrint(
+        '[CalendarWidget] yearMonth=$_ym  monthRecords=${monthRecords.length}',
+      );
     }
 
-    // 달력 계산
-    final firstDayOfMonth = DateTime(_ym.year, _ym.month, 1);
-    final int daysInMonth = DateTime(
-      _ym.year,
-      _ym.month + 1,
-      0,
-    ).day; // 다음달 0일 = 이번달 말일
-    final int startWeekday = firstDayOfMonth.weekday; // 월=1 … 일=7
-    final int leadingEmpty = (startWeekday % 7); // 월=1→1칸 비움, 일=7→0칸 비움
+    final Map<int, List<CalendarRecord>> dayMap = {};
+    for (final r in monthRecords) {
+      dayMap.putIfAbsent(r.date.day, () => <CalendarRecord>[]).add(r);
+    }
 
-    final int totalCells = leadingEmpty + daysInMonth;
-    final int weeks = (totalCells / 7).ceil().clamp(5, 6); // 5주 또는 6주만 사용
-    final int gridCount = weeks * 7;
+    final firstDayOfMonth = DateTime(_ym.year, _ym.month, 1);
+    final daysInMonth = DateTime(_ym.year, _ym.month + 1, 0).day;
+    final startWeekday = firstDayOfMonth.weekday % 7;
+    final leadingEmpty = startWeekday;
+    final totalCells = leadingEmpty + daysInMonth;
+    final weeks = (totalCells / 7).ceil();
+    final gridCount = weeks * 7;
+    final needsScroll = weeks == 6;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ───── 헤더 (연/월 + ▼) ─────
-        // 기존 (❌ onTap 존재하지 않음)
         CalendarHeader(
           value: _ym,
           onChanged: (picked) {
             setState(() => _ym = picked);
+            ctrl.changeMonth(DateTime(picked.year, picked.month, 1));
           },
         ),
         const SizedBox(height: 8),
-
-        // ───── 요일 행 ─────
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 4),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: const [
-              _WeekLabel('월'),
-              _WeekLabel('화'),
-              _WeekLabel('수'),
-              _WeekLabel('목'),
-              _WeekLabel('금'),
-              _WeekLabel('토'),
-              _WeekLabel('일'),
+            children: [
+              for (final label in const ['일', '월', '화', '수', '목', '금', '토'])
+                Expanded(
+                  child: Center(
+                    child: Text(
+                      label,
+                      style: AppTextStyles.small.copyWith(
+                        color: AppColors.text_color1,
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
-        const SizedBox(height: 8),
-
-        // ───── 달력 그리드 (경계선 없음) ─────
-        GridView.builder(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          physics: const NeverScrollableScrollPhysics(),
-          shrinkWrap: true,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 7, // 요일 7칸
-            mainAxisSpacing: 18, // 셀 간 세로 간격
-            crossAxisSpacing: 12, // 셀 간 가로 간격
-          ),
-          itemCount: gridCount,
-          itemBuilder: (ctx, index) {
-            final dayNumber = index - leadingEmpty + 1;
-            if (dayNumber < 1 || dayNumber > daysInMonth) {
-              // 이전/다음달 영역 → 빈 칸(경계선 없음)
-              return const SizedBox.shrink();
-            }
-
-            final items = dayMap[dayNumber] ?? const <CalendarVisitItem>[];
-            return CalendarDayCell(
-              date: DateTime(_ym.year, _ym.month, dayNumber),
-              items: items, // 기록 없으면 빈 배열 → 백지 + 하단 날짜만
-            );
-          },
-        ),
-
-        // 하단 다음 달 제목(디자인 참고용)
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
-          child: Text(
-            '${_nextYearMonth(_ym).year}년 ${_nextYearMonth(_ym).month}월',
-            style: AppTextStyles.subtitle,
-          ),
-        ),
-
-        // 상태 뱃지/로딩/에러 간단 표시(디버깅용)
-        if (state.loading && !state.loadedOnce)
-          const Padding(
-            padding: EdgeInsets.all(16),
-            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-          ),
-        if (state.error != null)
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Text(
-              '오류: ${state.error}',
-              style: const TextStyle(color: Colors.red),
+        const SizedBox(height: 6),
+        Expanded(
+          child: GridView.builder(
+            physics: needsScroll
+                ? const BouncingScrollPhysics()
+                : const NeverScrollableScrollPhysics(),
+            padding: EdgeInsets.zero,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 7,
+              childAspectRatio: _cellWidth / _cellHeight,
             ),
+            itemCount: gridCount,
+            itemBuilder: (_, index) {
+              final col = index % 7;
+              final row = index ~/ 7;
+              final isFirstCol = col == 0;
+              final isFirstRow = row == 0;
+
+              final day = index - leadingEmpty + 1;
+              final inMonth = day >= 1 && day <= daysInMonth;
+
+              final items = inMonth
+                  ? (dayMap[day] ?? const <CalendarRecord>[])
+                  : const <CalendarRecord>[];
+
+              return CalendarDayCell(
+                date: inMonth
+                    ? DateTime(_ym.year, _ym.month, day)
+                    : DateTime(_ym.year, _ym.month, 1),
+                items: items,
+                isPlaceholder: !inMonth,
+                isFirstColumn: isFirstCol,
+                isFirstRow: isFirstRow,
+                onTapRecord: (recordId) =>
+                    showRecordCardPreviewFromRecordId(context, ref, recordId),
+                formatHHMM: ctrl.formatHHMM,
+              );
+            },
           ),
+        ),
       ],
-    );
-  }
-
-  YearMonth _nextYearMonth(YearMonth ym) {
-    final m = ym.month + 1;
-    if (m == 13) return YearMonth(ym.year + 1, 1);
-    return YearMonth(ym.year, m);
-  }
-}
-
-class _WeekLabel extends StatelessWidget {
-  const _WeekLabel(this.text);
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: AppTextStyles.small.copyWith(color: AppColors.text_color2),
     );
   }
 }
