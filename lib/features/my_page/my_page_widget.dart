@@ -1,6 +1,6 @@
-// lib/features/my_page/my_page_widget.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart' show rootBundle; // ✅ 디버그용 asset 체크
 
 import 'package:moods/common/constants/colors.dart';
 import 'package:moods/features/my_page/setting/setting_widget.dart';
@@ -29,11 +29,26 @@ class _MyPageWidgetState extends ConsumerState<MyPageWidget> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+
+    // ✅ 디버그: JPEG 파일 존재 확인
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _debugCheckImageAsset();
       if (!mounted) return;
       ref.read(studyCountControllerProvider.notifier).loadIfNeeded();
       ref.read(studySpaceCountControllerProvider.notifier).loadIfNeeded();
     });
+  }
+
+  Future<void> _debugCheckImageAsset() async {
+    const path = 'assets/fonts/icons/cafe.png'; // ✅ 실제 경로
+    try {
+      final data = await rootBundle.load(path);
+      debugPrint(
+        '✅ cafe.jpeg loaded successfully (${data.lengthInBytes} bytes)',
+      );
+    } catch (e) {
+      debugPrint('❌ cafe.jpeg load failed: $e');
+    }
   }
 
   @override
@@ -53,6 +68,7 @@ class _MyPageWidgetState extends ConsumerState<MyPageWidget> {
               color: headerColor,
               padding: EdgeInsets.only(top: statusBar),
               child: Stack(
+                clipBehavior: Clip.none,
                 children: [
                   // 프로필 카드
                   const Positioned(
@@ -62,7 +78,20 @@ class _MyPageWidgetState extends ConsumerState<MyPageWidget> {
                     child: UserProfileWidget(),
                   ),
 
-                  // PNG 아이콘 추가
+                  // ✅ JPEG 아이콘 (cafe.jpeg)
+                  Positioned(
+                    left: -25,
+                    top: 60,
+                    child: Opacity(
+                      opacity: 0.9, // 살짝 투명도
+                      child: Image.asset(
+                        'assets/fonts/icons/cafe.png',
+                        width: 110,
+                        height: 110,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
