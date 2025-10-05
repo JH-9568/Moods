@@ -58,6 +58,7 @@ flutter:
     - assets/fonts/icons/mdi_camera.svg
     - assets/fonts/icons/gallery.svg
     - assets/fonts/icons/moodslogo.svg
+    - assets/fonts/icons/cafe.png
     - assets/fonts/
 
   fonts:
