@@ -15,11 +15,28 @@ import 'package:moods/features/home/widget/my_ranking/my_ranking_controller.dart
 
 /// 감정 → 이모지 매핑
 const Map<String, String> _kEmotionEmoji = {
-  '기쁨': '😆','보통': '😐','슬픔': '😭','화남': '😡','아픔': '🤢',
-  '멘붕': '🤯','설렘': '😳','피곤': '😴','지루함': '🥱','애매모호': '😵‍💫',
+  '기쁨': '😆',
+  '보통': '😐',
+  '슬픔': '😭',
+  '화남': '😡',
+  '아픔': '🤢',
+  '멘붕': '🤯',
+  '설렘': '😳',
+  '피곤': '😴',
+  '지루함': '🥱',
+  '애매모호': '😵‍💫',
 };
 const Set<String> _kEmotionSet = {
-  '기쁨','보통','슬픔','화남','아픔','멘붕','설렘','피곤','지루함','애매모호',
+  '기쁨',
+  '보통',
+  '슬픔',
+  '화남',
+  '아픔',
+  '멘붕',
+  '설렘',
+  '피곤',
+  '지루함',
+  '애매모호',
 };
 
 class RecordCardData {
@@ -54,19 +71,31 @@ class RecordCardData {
     final p = v.split(':');
     if (p.length != 3) return Duration.zero;
     int toInt(String s) => int.tryParse(s) ?? 0;
-    return Duration(hours: toInt(p[0]), minutes: toInt(p[1]), seconds: toInt(p[2]));
+    return Duration(
+      hours: toInt(p[0]),
+      minutes: toInt(p[1]),
+      seconds: toInt(p[2]),
+    );
   }
 
   factory RecordCardData.fromRecordJson(Map<String, dynamic> rec) {
     DateTime _date(dynamic v) {
-      try { return DateTime.parse(v.toString()).toLocal(); } catch (_) { return DateTime.now(); }
+      try {
+        return DateTime.parse(v.toString()).toLocal();
+      } catch (_) {
+        return DateTime.now();
+      }
     }
+
     List _asList(dynamic v) => (v is List) ? v : const [];
-    Map<String, dynamic> _asMap(dynamic v) =>
-        (v is Map<String, dynamic>) ? v : (v is Map ? Map<String, dynamic>.from(v) : <String, dynamic>{});
+    Map<String, dynamic> _asMap(dynamic v) => (v is Map<String, dynamic>)
+        ? v
+        : (v is Map ? Map<String, dynamic>.from(v) : <String, dynamic>{});
 
     final title = (rec['title']?.toString() ?? '').trim();
-    final date = rec['date'] != null ? _date('${rec['date']}T00:00:00') : _date(rec['end_time']);
+    final date = rec['date'] != null
+        ? _date('${rec['date']}T00:00:00')
+        : _date(rec['end_time']);
 
     final focus = (rec['total_time'] != null)
         ? _parseHms(rec['total_time']?.toString())
@@ -85,11 +114,17 @@ class RecordCardData {
       if (txt.isNotEmpty && m['done'] == true) goalsDone.add(txt);
     }
 
-    List<String> emotions = _asList(rec['emotions']).map((e) => e.toString()).toList();
+    List<String> emotions = _asList(
+      rec['emotions'],
+    ).map((e) => e.toString()).toList();
     if (emotions.isEmpty) {
-      emotions = _asList(rec['emotion_tag_ids']).map((e) => e.toString()).toList();
+      emotions = _asList(
+        rec['emotion_tag_ids'],
+      ).map((e) => e.toString()).toList();
       if (emotions.isEmpty) {
-        emotions = _asList(rec['record_emotions']).map((e) => e.toString()).toList();
+        emotions = _asList(
+          rec['record_emotions'],
+        ).map((e) => e.toString()).toList();
       }
     }
 
@@ -98,32 +133,49 @@ class RecordCardData {
       final spaces = _asList(rec['spaces']);
       if (spaces.isNotEmpty) space = _asMap(spaces.first);
     }
-    final placeName = (space['name']?.toString() ?? '').trim().isEmpty ? '미정' : space['name'].toString();
+    final placeName = (space['name']?.toString() ?? '').trim().isEmpty
+        ? '미정'
+        : space['name'].toString();
     final placeType = (space['type']?.toString() ?? '').trim().isNotEmpty
         ? space['type'].toString()
-        : (_asList(space['type_tags']).isNotEmpty ? _asList(space['type_tags']).first.toString() : '공간');
+        : (_asList(space['type_tags']).isNotEmpty
+              ? _asList(space['type_tags']).first.toString()
+              : '공간');
     final String placeMood = (() {
       final s = (space['mood']?.toString() ?? '').trim();
       if (s.isNotEmpty) return s;
-      final mt = _asList(space['mood_tags']).map((e) => e.toString()).toList().join(', ');
+      final mt = _asList(
+        space['mood_tags'],
+      ).map((e) => e.toString()).toList().join(', ');
       return mt.isNotEmpty ? mt : '무드 미정';
     })();
 
-    final List<String> tags = (_asList(space['tags']).isNotEmpty ? _asList(space['tags']) : _asList(rec['tags']))
-        .map((e) => e.toString()).toList();
+    final List<String> tags =
+        (_asList(space['tags']).isNotEmpty
+                ? _asList(space['tags'])
+                : _asList(rec['tags']))
+            .map((e) => e.toString())
+            .toList();
 
     // 공간 특징 필드를 UI 태그로 변환
     final bool power = space['power'] == true || rec['power'] == true;
     if (power) tags.add('콘센트 많음');
 
-    final int wifiScore = (space['wifi_score'] ?? rec['wifi_score'] ?? 0) is int ? (space['wifi_score'] ?? rec['wifi_score'] ?? 0) : 0;
+    final int wifiScore = (space['wifi_score'] ?? rec['wifi_score'] ?? 0) is int
+        ? (space['wifi_score'] ?? rec['wifi_score'] ?? 0)
+        : 0;
     if (wifiScore >= 4) tags.add('와이파이 퀄리티 좋음');
 
-    final int noiseLevel = (space['noise_level'] ?? rec['noise_level'] ?? 0) is int ? (space['noise_level'] ?? rec['noise_level'] ?? 0) : 0;
+    final int noiseLevel =
+        (space['noise_level'] ?? rec['noise_level'] ?? 0) is int
+        ? (space['noise_level'] ?? rec['noise_level'] ?? 0)
+        : 0;
     if (noiseLevel == 1) tags.add('소음 낮음');
     if (noiseLevel == 3) tags.add('소음 높음');
 
-    final int crowdness = (space['crowdness'] ?? rec['crowdness'] ?? 0) is int ? (space['crowdness'] ?? rec['crowdness'] ?? 0) : 0;
+    final int crowdness = (space['crowdness'] ?? rec['crowdness'] ?? 0) is int
+        ? (space['crowdness'] ?? rec['crowdness'] ?? 0)
+        : 0;
     if (crowdness == 1) tags.add('자리 많음');
 
     ImageProvider? background;
@@ -146,8 +198,12 @@ class RecordCardData {
   }
 
   /// record controller의 state로부터 직접 생성
-  factory RecordCardData.fromRecordState(RecordState st, Map<String, dynamic> spaceDetail) {
-    List<String> _asList(dynamic v) => (v is List) ? List<String>.from(v.map((e) => e.toString())) : const [];
+  factory RecordCardData.fromRecordState(
+    RecordState st,
+    Map<String, dynamic> spaceDetail,
+  ) {
+    List<String> _asList(dynamic v) =>
+        (v is List) ? List<String>.from(v.map((e) => e.toString())) : const [];
 
     final title = st.title.trim();
     final date = DateTime.now(); // finalize 시점은 현재
@@ -161,10 +217,14 @@ class RecordCardData {
 
     final emotions = st.emotionTagIds;
 
-    final placeName = (spaceDetail['name']?.toString() ?? '').trim().isEmpty ? '미정' : spaceDetail['name'].toString();
+    final placeName = (spaceDetail['name']?.toString() ?? '').trim().isEmpty
+        ? '미정'
+        : spaceDetail['name'].toString();
     final placeType = (spaceDetail['type']?.toString() ?? '').trim().isNotEmpty
         ? spaceDetail['type'].toString()
-        : (_asList(spaceDetail['type_tags']).isNotEmpty ? _asList(spaceDetail['type_tags']).first.toString() : '공간');
+        : (_asList(spaceDetail['type_tags']).isNotEmpty
+              ? _asList(spaceDetail['type_tags']).first.toString()
+              : '공간');
     final String placeMood = st.selectedMoods.join(', ');
 
     final List<String> tags = [];
@@ -205,7 +265,8 @@ Future<void> showRecordCardPreview(BuildContext context, RecordCardData data) {
     pageBuilder: (context, _, __) {
       // Consumer를 사용하여 ref를 전달할 수 있도록 context를 감싸줍니다.
       return Consumer(
-        builder: (context, ref, child) => _RecordCardOverlay(data: data, ref: ref),
+        builder: (context, ref, child) =>
+            _RecordCardOverlay(data: data, ref: ref),
       );
     },
   );
@@ -216,9 +277,24 @@ Future<void> showRecordCardPreviewFromRecordId(
   WidgetRef ref,
   String recordId,
 ) async {
-  final rec = await ref.read(recordControllerProvider.notifier).getRecordDetail(recordId);
+  final rec = await ref
+      .read(recordControllerProvider.notifier)
+      .getRecordDetail(recordId);
   final data = RecordCardData.fromRecordJson(rec);
-  await showRecordCardPreview(context, data);
+
+  // ✅ returnToCalendar: true 로 설정
+  await showGeneralDialog(
+    context: context,
+    barrierDismissible: false,
+    barrierColor: Colors.black.withOpacity(0.60),
+    transitionDuration: const Duration(milliseconds: 160),
+    pageBuilder: (context, _, __) {
+      return Consumer(
+        builder: (context, ref, child) =>
+            _RecordCardOverlay(data: data, ref: ref, returnToCalendar: true),
+      );
+    },
+  );
 }
 
 class RecordCardPreviewScreen extends ConsumerWidget {
@@ -227,26 +303,37 @@ class RecordCardPreviewScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Material(color: Colors.black.withOpacity(0.60), child: _RecordCardOverlay(data: data, ref: ref));
+    return Material(
+      color: Colors.black.withOpacity(0.60),
+      child: _RecordCardOverlay(data: data, ref: ref),
+    );
   }
 }
 
-class _RecordCardOverlay extends StatelessWidget { // StatelessWidget을 유지해도 동작하지만, 명시적으로 ref를 받기 위해 ConsumerWidget으로 변경하는 것이 좋습니다.
+class _RecordCardOverlay extends StatelessWidget {
   final RecordCardData data;
-  final WidgetRef ref; // ref를 전달받습니다.
-  const _RecordCardOverlay({required this.data, required this.ref});
+  final WidgetRef ref;
+  final bool returnToCalendar; // ✅ 추가: 캘린더에서 열렸는지 여부
+
+  const _RecordCardOverlay({
+    required this.data,
+    required this.ref,
+    this.returnToCalendar = false, // 기본값 false (기록 생성 후는 홈 이동)
+  });
+
+  void _close(BuildContext context) {
+    Navigator.of(context, rootNavigator: true).pop();
+  }
 
   void _closeAndGoHome(BuildContext context, WidgetRef ref) {
-    // 데이터 갱신이 필요한 프로바이더들을 무효화합니다.
-    // 이렇게 하면 다음에 해당 프로바이더를 읽을 때 데이터가 새로고침됩니다.
-    ref.invalidate(studyTimeControllerProvider); // 홈 '총 공부 시간'
-    ref.invalidate(studyCountControllerProvider); // 홈 '총 공부 횟수'
-    ref.invalidate(homeRecordControllerProvider); // 홈, 마이페이지 '최근 방문 공간'
-    ref.invalidate(studySpaceCountControllerProvider); // 마이페이지 '방문한 공간 수'
-    ref.invalidate(myRankingControllerProvider); // 홈 '나의 공간 랭킹'
+    ref.invalidate(studyTimeControllerProvider);
+    ref.invalidate(studyCountControllerProvider);
+    ref.invalidate(homeRecordControllerProvider);
+    ref.invalidate(studySpaceCountControllerProvider);
+    ref.invalidate(myRankingControllerProvider);
 
-    // 기존의 화면 이동 로직
-    Navigator.of(context, rootNavigator: true).pop();
+    _close(context);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (context.mounted) GoRouter.of(context).go('/home');
     });
@@ -254,13 +341,18 @@ class _RecordCardOverlay extends StatelessWidget { // StatelessWidget을 유지�
 
   @override
   Widget build(BuildContext context) {
+    // ✅ returnToCalendar이면 닫기만, 아니면 홈으로
+    final onConfirm = returnToCalendar
+        ? () => _close(context)
+        : () => _closeAndGoHome(context, ref);
+
     return Center(
       child: Material(
         type: MaterialType.transparency,
         child: SizedBox(
           width: 329,
           height: 622,
-          child: _RecordCard(data: data, onConfirm: () => _closeAndGoHome(context, ref)),
+          child: _RecordCard(data: data, onConfirm: onConfirm),
         ),
       ),
     );
@@ -277,25 +369,36 @@ class _RecordCard extends StatelessWidget {
     List<String> emotions = List<String>.from(data.moods);
     String placeMood = data.placeMood;
 
-    final moodsAreEmotions = emotions.isNotEmpty && emotions.every(_kEmotionSet.contains);
-    final tokens = placeMood.split(RegExp(r'[,\s]+')).map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+    final moodsAreEmotions =
+        emotions.isNotEmpty && emotions.every(_kEmotionSet.contains);
+    final tokens = placeMood
+        .split(RegExp(r'[,\s]+'))
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
     final emotionsInPlace = tokens.where(_kEmotionSet.contains).toList();
-    final nonEmotionInPlace = tokens.where((e) => !_kEmotionSet.contains(e)).toList();
+    final nonEmotionInPlace = tokens
+        .where((e) => !_kEmotionSet.contains(e))
+        .toList();
 
     if (!moodsAreEmotions && emotionsInPlace.isNotEmpty) {
       emotions = emotionsInPlace;
-      placeMood = nonEmotionInPlace.isNotEmpty ? nonEmotionInPlace.join(', ') : '무드 미정';
+      placeMood = nonEmotionInPlace.isNotEmpty
+          ? nonEmotionInPlace.join(', ')
+          : '무드 미정';
     }
     return (emotions, placeMood);
   }
 
   @override
   Widget build(BuildContext context) {
-    final bg = data.background ?? const AssetImage('assets/images/sample_space.jpg');
+    final bg =
+        data.background ?? const AssetImage('assets/images/sample_space.jpg');
     final (emotions, placeMoodFixed) = _normalizeEmotionsAndPlaceMood();
 
     String two(int v) => v.toString().padLeft(2, '0');
-    String d2(Duration d) => '${two(d.inHours)}:${two(d.inMinutes % 60)}:${two(d.inSeconds % 60)}';
+    String d2(Duration d) =>
+        '${two(d.inHours)}:${two(d.inMinutes % 60)}:${two(d.inSeconds % 60)}';
     final y = data.date.year.toString().padLeft(4, '0');
     final m = two(data.date.month);
     final d = two(data.date.day);
@@ -306,7 +409,11 @@ class _RecordCard extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           // 배경 이미지 + 전체 딤(조금 더 투명)
-          DecoratedBox(decoration: BoxDecoration(image: DecorationImage(image: bg, fit: BoxFit.cover))),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              image: DecorationImage(image: bg, fit: BoxFit.cover),
+            ),
+          ),
           Container(color: Colors.black.withOpacity(0.18)),
 
           // 상/하단 그라데이션(진하기 완화)
@@ -316,7 +423,8 @@ class _RecordCard extends StatelessWidget {
               height: 200,
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
-                  begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
                   colors: [Colors.black54, Colors.transparent],
                 ),
               ),
@@ -328,7 +436,8 @@ class _RecordCard extends StatelessWidget {
               height: 260,
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
-                  begin: Alignment.bottomCenter, end: Alignment.topCenter,
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
                   colors: [Colors.black54, Colors.transparent],
                 ),
               ),
@@ -345,14 +454,29 @@ class _RecordCard extends StatelessWidget {
                   height: 36,
                   child: Stack(
                     children: [
-                      Center(child: Text('기록카드', style: AppTextStyles.title.copyWith(color: Colors.white))),
+                      Center(
+                        child: Text(
+                          '기록카드',
+                          style: AppTextStyles.title.copyWith(
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
                       const Positioned(
-                        right: 0, top: 0, bottom: 0,
+                        right: 0,
+                        top: 0,
+                        bottom: 0,
                         child: Row(
                           children: [
-                            _RoundIcon(onTap: _noop, icon: Icons.ios_share_rounded),
+                            _RoundIcon(
+                              onTap: _noop,
+                              icon: Icons.ios_share_rounded,
+                            ),
                             SizedBox(width: 8),
-                            _RoundIcon(onTap: _noop, icon: Icons.download_rounded),
+                            _RoundIcon(
+                              onTap: _noop,
+                              icon: Icons.download_rounded,
+                            ),
                           ],
                         ),
                       ),
@@ -376,7 +500,9 @@ class _RecordCard extends StatelessWidget {
                           child: Text(
                             '$y-$m-$d',
                             textAlign: TextAlign.center,
-                            style: AppTextStyles.textR.copyWith(color: Colors.white),
+                            style: AppTextStyles.textR.copyWith(
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ),
@@ -387,27 +513,46 @@ class _RecordCard extends StatelessWidget {
                           child: Text(
                             d2(data.focusTime),
                             textAlign: TextAlign.center,
-                            style: AppTextStyles.time.copyWith(color: Colors.white),
+                            style: AppTextStyles.time.copyWith(
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ),
                       // 하단 3줄: 아래쪽에 촘촘히
                       Positioned(
-                        left: 0, right: 0, bottom: 10,
+                        left: 0,
+                        right: 0,
+                        bottom: 10,
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text('순 공부 시간',
+                            Text(
+                              '순 공부 시간',
                               textAlign: TextAlign.center,
-                              style: AppTextStyles.smallR10.copyWith(color: Colors.white, height: 1.0)),
+                              style: AppTextStyles.smallR10.copyWith(
+                                color: Colors.white,
+                                height: 1.0,
+                              ),
+                            ),
                             const SizedBox(height: 6),
-                            Text(d2(data.focusTime),
+                            Text(
+                              d2(data.focusTime),
                               textAlign: TextAlign.center,
-                              style: AppTextStyles.smallSb.copyWith(color: Colors.white, height: 1.0)),
+                              style: AppTextStyles.smallSb.copyWith(
+                                color: Colors.white,
+                                height: 1.0,
+                              ),
+                            ),
                             const SizedBox(height: 6),
-                            Text('총 시간',
+                            Text(
+                              '총 시간',
                               textAlign: TextAlign.center,
-                              style: AppTextStyles.smallR10.copyWith(color: Colors.white, height: 1.0)),
+                              style: AppTextStyles.smallR10.copyWith(
+                                color: Colors.white,
+                                height: 1.0,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -439,11 +584,16 @@ class _RecordCard extends StatelessWidget {
                                   textAlign: TextAlign.center,
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
-                                  style: AppTextStyles.bodyBold.copyWith(color: Colors.white),
+                                  style: AppTextStyles.bodyBold.copyWith(
+                                    color: Colors.white,
+                                  ),
                                 ),
                               ),
-                              if (data.goalsDone.isNotEmpty) const SizedBox(height: 8),
-                              ...data.goalsDone.map((g) => _GoalCheck(label: g)),
+                              if (data.goalsDone.isNotEmpty)
+                                const SizedBox(height: 8),
+                              ...data.goalsDone.map(
+                                (g) => _GoalCheck(label: g),
+                              ),
                             ],
                           ),
                         ),
@@ -451,7 +601,8 @@ class _RecordCard extends StatelessWidget {
                           Align(
                             alignment: Alignment.bottomLeft,
                             child: Wrap(
-                              spacing: 8, runSpacing: 8,
+                              spacing: 8,
+                              runSpacing: 8,
                               children: emotions.map((e) {
                                 final emoji = _kEmotionEmoji[e] ?? '🙂';
                                 return _EmojiPill(label: '$emoji  $e');
@@ -480,7 +631,11 @@ class _RecordCard extends StatelessWidget {
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(Icons.place_rounded, color: Colors.white, size: 18),
+                            const Icon(
+                              Icons.place_rounded,
+                              color: Colors.white,
+                              size: 18,
+                            ),
                             const SizedBox(width: 6),
                             Expanded(
                               child: Text(
@@ -510,7 +665,7 @@ class _RecordCard extends StatelessWidget {
                                   for (final t in data.tags) ...[
                                     _TagPill(label: t),
                                     const SizedBox(width: 8),
-                                  ]
+                                  ],
                                 ],
                               ),
                             ),
@@ -532,7 +687,9 @@ class _RecordCard extends StatelessWidget {
                       backgroundColor: Colors.white,
                       foregroundColor: AppColorsJ.black,
                       elevation: 0,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
                     ),
                     onPressed: onConfirm,
                     child: const Text('확인', style: AppTextStyles.bodyBold),
@@ -555,9 +712,9 @@ class _FrostedPanel extends StatelessWidget {
   final Widget child;
 
   // ▶ 투명도/블러 조절 파라미터(기본값도 기존보다 더 투명)
-  final double blurSigma;       // 기본 12 → 7
-  final double overlayOpacity;  // 기본 0.15 → 0.10
-  final double borderOpacity;   // 기본 0.10 → 0.06
+  final double blurSigma; // 기본 12 → 7
+  final double overlayOpacity; // 기본 0.15 → 0.10
+  final double borderOpacity; // 기본 0.10 → 0.06
 
   const _FrostedPanel({
     required this.width,
@@ -616,6 +773,7 @@ class _RoundIcon extends StatelessWidget {
     );
   }
 }
+
 const _noop = _RoundIcon._noop;
 
 class _GoalCheck extends StatelessWidget {
@@ -630,14 +788,24 @@ class _GoalCheck extends StatelessWidget {
           Container(
             width: 18,
             height: 18,
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(5)),
-            child: const Icon(Icons.check_rounded, size: 16, color: AppColorsJ.main4),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(5),
+            ),
+            child: const Icon(
+              Icons.check_rounded,
+              size: 16,
+              color: AppColorsJ.main4,
+            ),
           ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               label,
-              style: AppTextStyles.small.copyWith(fontWeight: FontWeight.w600, color: Colors.white),
+              style: AppTextStyles.small.copyWith(
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -656,10 +824,16 @@ class _EmojiPill extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(color: AppColorsJ.main2, borderRadius: BorderRadius.circular(999)),
+      decoration: BoxDecoration(
+        color: AppColorsJ.main2,
+        borderRadius: BorderRadius.circular(999),
+      ),
       child: Text(
         label,
-        style: AppTextStyles.small.copyWith(fontWeight: FontWeight.w600, color: AppColorsJ.black),
+        style: AppTextStyles.small.copyWith(
+          fontWeight: FontWeight.w600,
+          color: AppColorsJ.black,
+        ),
       ),
     );
   }
@@ -675,7 +849,10 @@ class _TagPill extends StatelessWidget {
       height: 21,
       alignment: Alignment.center,
       padding: const EdgeInsets.symmetric(horizontal: 10),
-      decoration: BoxDecoration(color: AppColorsJ.main2, borderRadius: BorderRadius.circular(999)),
+      decoration: BoxDecoration(
+        color: AppColorsJ.main2,
+        borderRadius: BorderRadius.circular(999),
+      ),
       child: Text(
         label,
         maxLines: 1,
@@ -701,8 +878,17 @@ class _InfoLine extends StatelessWidget {
       text: TextSpan(
         style: AppTextStyles.small.copyWith(color: Colors.white70),
         children: [
-          TextSpan(text: '$label  ', style: AppTextStyles.small.copyWith(color: Colors.white70)),
-          TextSpan(text: value, style: AppTextStyles.small.copyWith(fontWeight: FontWeight.w700, color: Colors.white)),
+          TextSpan(
+            text: '$label  ',
+            style: AppTextStyles.small.copyWith(color: Colors.white70),
+          ),
+          TextSpan(
+            text: value,
+            style: AppTextStyles.small.copyWith(
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+            ),
+          ),
         ],
       ),
     );

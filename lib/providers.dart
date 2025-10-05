@@ -1,9 +1,14 @@
+//providers.dart
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+// ↓↓↓ 2번 적용: 모바일/데스크탑에서 keep-alive + gzip/deflate를 잘 쓰도록 IOClient 사용
+import 'dart:io' show HttpClient;
+import 'package:http/io_client.dart';
 
 import 'features/auth/service/auth_service.dart';
 import 'features/auth/service/token_storage.dart';
@@ -83,8 +88,23 @@ final tokenStorageProvider = Provider<TokenStorage>((ref) {
   final fs = ref.read(flutterSecureStorageProvider);
   return TokenStorage(storage: fs);
 });
-// http client
-final baseHttpClientProvider = Provider<http.Client>((ref) => http.Client());
+
+// ========== 2번 적용 포인트 ==========
+// 기본 http.Client 대신 IOClient를 써서
+// - keep-alive(연결 재사용)
+// - maxConnectionsPerHost(동시 연결 수 상승)
+// - autoUncompress(gzip/deflate 자동 해제)
+// 를 활성화. 웹(kIsWeb)에서는 기존 Client 사용.
+final baseHttpClientProvider = Provider<http.Client>((ref) {
+  if (kIsWeb) {
+    return http.Client();
+  }
+  final io = HttpClient()
+    ..autoUncompress = true
+    ..maxConnectionsPerHost = 8
+    ..idleTimeout = const Duration(seconds: 15);
+  return IOClient(io);
+});
 
 // AuthService
 final authServiceProvider = Provider<AuthService>((ref) {
@@ -177,15 +197,18 @@ final accountServiceProvider = Provider<AccountService>((ref) {
 
 // Calendar Service Provider
 final calendarServiceProvider = Provider<CalendarService>((ref) {
-  final client = ref.read(authHttpClientProvider); // 토큰 자동부착 클라이언트
-  return CalendarService(getJwt: () => '', client: client);
+  // ✅ 토큰 자동 부착되는 AuthHttpClient 사용
+  final client = ref.read(authHttpClientProvider);
+  return CalendarService(client: client); // getJwt 안 넘겨도 됨
 });
 
 // Calendar Controller Provider
 final calendarControllerProvider =
     StateNotifierProvider<CalendarController, CalendarState>((ref) {
       final svc = ref.read(calendarServiceProvider);
-      return CalendarController(service: svc); // ← 생성자 named param
+      final now = DateTime.now();
+      final firstDay = DateTime(now.year, now.month, 1);
+      return CalendarController(ref, svc, initialMonth: firstDay);
     });
 
 // 현재 선택된 연/월

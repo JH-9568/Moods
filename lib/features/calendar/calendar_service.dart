@@ -1,105 +1,235 @@
-// lib/features/calendar/calendar_service.dart
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show compute;
 import 'package:http/http.dart' as http;
 import 'package:moods/common/constants/api_constants.dart';
 
-typedef JwtProvider = String Function();
+// ====== Isolate parser (변경 없음/간결 주석) ======
+List<Map<String, dynamic>> parseCalendarMonthIsolate(
+  Map<String, dynamic> args,
+) {
+  final String rawBody = args['rawBody'] as String;
+  final int year = args['year'] as int;
+  final int month = args['month'] as int;
 
-class CalendarVisitItem {
-  final DateTime date;
-  final String spaceName;
-  final String? imageUrl;
-  final String? durationDisplay;
+  int toSeconds(dynamic v) {
+    if (v == null) return 0;
+    if (v is num) return v.round();
+    if (v is String) {
+      final s = v.trim();
+      if (s.contains(':')) {
+        final parts = s.split(':');
+        int h = 0, m = 0;
+        double sec = 0;
+        if (parts.length == 3) {
+          h = int.tryParse(parts[0]) ?? 0;
+          m = int.tryParse(parts[1]) ?? 0;
+          sec = double.tryParse(parts[2]) ?? 0;
+        } else if (parts.length == 2) {
+          m = int.tryParse(parts[0]) ?? 0;
+          sec = double.tryParse(parts[1]) ?? 0;
+        } else if (parts.length == 1) {
+          sec = double.tryParse(parts[0]) ?? 0;
+        }
+        return (h * 3600 + m * 60 + sec).round();
+      }
+      final d = double.tryParse(s);
+      if (d != null) return d.round();
+    }
+    return 0;
+  }
 
-  CalendarVisitItem({
-    required this.date,
-    required this.spaceName,
-    required this.imageUrl,
-    this.durationDisplay,
+  String ymd(int y, int m, int d) =>
+      '${y.toString().padLeft(4, '0')}-${m.toString().padLeft(2, '0')}-${d.toString().padLeft(2, '0')}';
+
+  final body = jsonDecode(rawBody);
+  final rbd = (body is Map)
+      ? (body['records_by_day'] ?? body['recordsByDay'])
+      : null;
+  if (rbd is! Map) return const <Map<String, dynamic>>[];
+
+  final flat = <Map<String, dynamic>>[];
+
+  rbd.forEach((dayKey, dayVal) {
+    final day = int.tryParse(dayKey.toString());
+    if (day == null) return;
+
+    List recList = const [];
+    if (dayVal is List) {
+      recList = dayVal;
+    } else if (dayVal is Map && dayVal['records'] is List) {
+      recList = dayVal['records'] as List;
+    }
+
+    for (final e in recList) {
+      if (e is! Map) continue;
+      final rec = Map<String, dynamic>.from(e);
+
+      final seconds = toSeconds(
+        rec['duration'] ??
+            rec['net_seconds'] ??
+            rec['total_seconds'] ??
+            rec['total_time'] ??
+            rec['net_time'],
+      );
+
+      final dateStr = (rec['date']?.toString().isNotEmpty ?? false)
+          ? rec['date'].toString()
+          : ymd(year, month, day);
+
+      final spaceName =
+          rec['space_name']?.toString() ??
+          (rec['space'] is Map ? (rec['space']['name']?.toString() ?? '') : '');
+
+      final imageUrl = rec['image_url'] ?? rec['space_image_url'];
+
+      flat.add({
+        'id': rec['id']?.toString() ?? rec['record_id']?.toString() ?? '',
+        'date': dateStr,
+        'title': rec['title']?.toString() ?? '공부 기록',
+        'duration': seconds,
+        'space': {'name': spaceName},
+        'image_url': imageUrl,
+        '_origin': rec,
+      });
+    }
   });
-}
 
-class CalendarDayBucket {
-  final DateTime date;
-  final List<CalendarVisitItem> items;
-
-  CalendarDayBucket({required this.date, required this.items});
+  return flat;
 }
 
 class CalendarService {
-  final JwtProvider getJwt;
-  final http.Client _client;
+  final http.Client client;
 
-  CalendarService({required this.getJwt, http.Client? client})
-    : _client = client ?? http.Client();
+  CalendarService({required this.client});
 
-  Future<List<CalendarDayBucket>> fetchRecentVisits() async {
-    final uri = Uri.parse('$baseUrl/stats/my/recent-spaces');
+  // === 간단한 월별 메모리 캐시 ===
+  // key = 'YYYY-MM'
+  final Map<String, List<Map<String, dynamic>>> _monthCache = {};
+  // (선택) 캐시 사이즈 제한
+  static const int _cacheMaxEntries = 6;
 
-    print('[CalendarService] GET $uri'); // ✅ 호출 URL 출력
+  String _ymKey(int y, int m) =>
+      '${y.toString().padLeft(4, '0')}-${m.toString().padLeft(2, '0')}';
 
-    final res = await _client.get(
-      uri,
-      headers: {'Content-Type': 'application/json'},
-    );
-    print('[CalendarService] status: ${res.statusCode}');
-    print('[CalendarService] body  : ${res.body}');
+  Uri _u(String path, [Map<String, String>? q]) {
+    final uri = Uri.parse('$baseUrl$path');
+    return q == null ? uri : uri.replace(queryParameters: q);
+  }
 
-    if (res.statusCode < 200 || res.statusCode >= 300) {
-      print('[CalendarService] body: ${res.body}');
-      throw Exception('recent-spaces 실패: ${res.statusCode}');
-    }
+  // lib/features/calendar/calendar_service.dart
 
-    final map = json.decode(res.body) as Map<String, dynamic>;
-    final items = (map['items'] as List? ?? []);
+  Future<List<Map<String, dynamic>>> _httpGetJsonFlat({
+    required int year,
+    required int month,
+  }) async {
+    final uri = _u('/record/records/calendar', {
+      'year': year.toString(),
+      'month': month.toString(),
+    });
 
-    print('[CalendarService] items length: ${items.length}'); // ✅ 결과 개수
+    // 🔧 타임아웃 8s → 25s, 재시도 3회 + 지수 백오프
+    const int maxRetries = 3;
+    const Duration timeout = Duration(seconds: 25);
 
-    final parsed = <CalendarVisitItem>[];
-    for (final raw in items) {
-      final spaceName = (raw['space_name'] ?? '').toString();
-      final lastDateStr = (raw['last_visit_date'] ?? '').toString();
+    http.Response res = http.Response('', 599);
+    Object? lastErr;
 
-      String? imageUrl;
-      final dynamic img = raw['space_image_url'];
-      if (img is List && img.isNotEmpty) {
-        imageUrl = img.first?.toString();
-      } else if (img is String && img.trim().isNotEmpty) {
-        imageUrl = img;
+    for (int attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        res = await client.get(uri).timeout(timeout);
+        // 2xx면 통과
+        if (res.statusCode ~/ 100 == 2) break;
+
+        // 429/5xx는 재시도, 나머지는 바로 에러
+        if (!(res.statusCode == 429 || res.statusCode >= 500)) {
+          throw Exception('calendar GET ${res.statusCode}');
+        }
+      } catch (e) {
+        lastErr = e;
       }
 
-      DateTime? date;
-      if (lastDateStr.isNotEmpty) {
-        date = DateTime.tryParse(lastDateStr);
+      // 백오프 (0.5s, 1s, 2s …)
+      final backoffMs = 500 * (1 << attempt);
+      await Future.delayed(Duration(milliseconds: backoffMs));
+    }
+
+    // 최종 실패 처리
+    if (res.statusCode ~/ 100 != 2) {
+      if (res.statusCode == 401) {
+        throw Exception('calendar GET 401 (Unauthorized)');
       }
-      date ??= DateTime.now();
-
-      parsed.add(
-        CalendarVisitItem(
-          date: DateTime(date.year, date.month, date.day),
-          spaceName: spaceName,
-          imageUrl: imageUrl,
-          durationDisplay: null,
-        ),
-      );
+      if (lastErr != null) {
+        throw lastErr!;
+      }
+      throw Exception('calendar GET ${res.statusCode}');
     }
 
-    print('[CalendarService] parsed items: ${parsed.length}'); // ✅ 파싱된 결과 개수
+    // 무거운 파싱은 그대로 Isolate로
+    return compute(parseCalendarMonthIsolate, {
+      'rawBody': res.body,
+      'year': year,
+      'month': month,
+    });
+  }
 
-    final bucketsMap = <DateTime, List<CalendarVisitItem>>{};
-    for (final it in parsed) {
-      final key = DateTime(it.date.year, it.date.month, it.date.day);
-      bucketsMap.putIfAbsent(key, () => []).add(it);
+  Future<List<Map<String, dynamic>>> _fetchCalendarMonth({
+    required int year,
+    required int month,
+  }) async {
+    final key = _ymKey(year, month);
+
+    // 캐시 히트 시 즉시 반환
+    final cached = _monthCache[key];
+    if (cached != null) return cached;
+
+    final flat = await _httpGetJsonFlat(year: year, month: month);
+
+    // 캐시 업데이트(LRU 비슷하게 사이즈 제한)
+    _monthCache[key] = flat;
+    if (_monthCache.length > _cacheMaxEntries) {
+      _monthCache.remove(_monthCache.keys.first);
     }
+    return flat;
+  }
 
-    final buckets = bucketsMap.entries.map((e) {
-      return CalendarDayBucket(date: e.key, items: e.value);
-    }).toList();
+  Future<List<Map<String, dynamic>>> fetchCalendarRange({
+    required DateTime from,
+    required DateTime to,
+  }) async {
+    return _fetchCalendarMonth(year: from.year, month: from.month);
+  }
 
-    buckets.sort((a, b) => a.date.compareTo(b.date));
-
-    print('[CalendarService] bucket count: ${buckets.length}'); // ✅ 날짜 그룹 개수
-
-    return buckets;
+  // (공용 리스트 유틸: 현재 미사용)
+  List<Map<String, dynamic>> _extractList(dynamic body) {
+    if (body is List) {
+      return body
+          .map<Map<String, dynamic>>(
+            (e) => e is Map<String, dynamic>
+                ? e
+                : Map<String, dynamic>.from(e as Map),
+          )
+          .toList();
+    }
+    if (body is Map && body['data'] is List) {
+      final list = body['data'] as List;
+      return list
+          .map<Map<String, dynamic>>(
+            (e) => e is Map<String, dynamic>
+                ? e
+                : Map<String, dynamic>.from(e as Map),
+          )
+          .toList();
+    }
+    if (body is Map && body['items'] is List) {
+      final list = body['items'] as List;
+      return list
+          .map<Map<String, dynamic>>(
+            (e) => e is Map<String, dynamic>
+                ? e
+                : Map<String, dynamic>.from(e as Map),
+          )
+          .toList();
+    }
+    return const <Map<String, dynamic>>[];
   }
 }

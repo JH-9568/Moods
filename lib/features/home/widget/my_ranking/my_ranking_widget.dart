@@ -246,12 +246,9 @@ class _ArcRankingCarouselState extends State<ArcRankingCarousel>
   // 원호의 기준 각도(드래그/스냅 시 갱신)
   double baseAngle = 0;
 
-  // 스냅 애니메이션
-  late final AnimationController _ctrl = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 360),
-  );
-  late Animation<double> _snapAnim = const AlwaysStoppedAnimation<double>(0);
+  // 스냅 애니메이션 컨트롤러/값
+  late final AnimationController _ctrl;
+  late Animation<double> _snapAnim;
 
   // 한 화면 최대 카드 수(로직 상한)
   static const int _visibleCount = 5;
@@ -275,8 +272,26 @@ class _ArcRankingCarouselState extends State<ArcRankingCarousel>
   static const double _pixelsThreshold = 24; // 느린 드래그 시 이동 임계
   static const double _velocityThreshold = 200; // 빠른 스와이프 속도 임계(px/s)
 
+  // 안전 setState
+  void _safeSetState(VoidCallback fn) {
+    if (!mounted) return;
+    setState(fn);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // ❗ 컨트롤러는 initState에서 생성 (필드 초기화 X)
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 360),
+    );
+    _snapAnim = const AlwaysStoppedAnimation<double>(0);
+  }
+
   @override
   void dispose() {
+    // ❗ dispose에서는 context 의존 금지 & 컨트롤러만 정리
     _ctrl.dispose();
     super.dispose();
   }
@@ -289,7 +304,7 @@ class _ArcRankingCarouselState extends State<ArcRankingCarousel>
 
   // 드래그 중: baseAngle 업데이트(좌우 이동)
   void _onDragUpdate(DragUpdateDetails d) {
-    setState(() {
+    _safeSetState(() {
       final delta = d.delta.dx;
       baseAngle += delta * _dragToAngle; // 픽셀 → 각도 변환
       baseAngle = _normalize(baseAngle); // 0~2π 범위로 정규화
@@ -323,10 +338,13 @@ class _ArcRankingCarouselState extends State<ArcRankingCarousel>
             begin: 0,
             end: _shortestDelta(baseAngle, target), // 최단 각도 경로
           ).chain(CurveTween(curve: Curves.easeOutCubic)).animate(_ctrl)
-          ..addListener(() => setState(() {}))
+          ..addListener(() {
+            // 애니메이션 중 프레임마다 다시 그리기
+            _safeSetState(() {});
+          })
           ..addStatusListener((s) {
             if (s == AnimationStatus.completed) {
-              setState(() {
+              _safeSetState(() {
                 baseAngle = _normalize(target);
                 _snapAnim = const AlwaysStoppedAnimation(0);
               });
