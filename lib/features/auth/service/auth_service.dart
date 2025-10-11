@@ -2,7 +2,8 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart' as kakao; // (사용 중이면 유지)
+import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart'
+    as kakao; // (사용 중이면 유지)
 import 'package:moods/common/constants/api_constants.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -35,15 +36,17 @@ class AuthService {
     };
 
     try {
-      final res = await httpClient.get(url, headers: headers).timeout(_defaultTimeout);
+      final res = await httpClient
+          .get(url, headers: headers)
+          .timeout(_defaultTimeout);
       if (res.statusCode == 401 || res.statusCode == 403) return false;
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         if (data is Map) {
           if (data['confirmed_at'] != null) return true;
-          if (data['confirmedAt'] != null)  return true;
-          if (data['verified'] == true)      return true;
-          if (data['isVerified'] == true)    return true;
+          if (data['confirmedAt'] != null) return true;
+          if (data['verified'] == true) return true;
+          if (data['isVerified'] == true) return true;
         }
         return false;
       }
@@ -79,7 +82,10 @@ class AuthService {
       if ((email == null || email.isEmpty) && (u?.identities != null)) {
         for (final id in u!.identities!) {
           final e = id.identityData?['email'] as String?;
-          if (e != null && e.isNotEmpty) { email = e; break; }
+          if (e != null && e.isNotEmpty) {
+            email = e;
+            break;
+          }
         }
       }
       email ??= (u?.userMetadata?['email'] as String?);
@@ -104,13 +110,19 @@ class AuthService {
     await prefs.remove('access_token');
     await prefs.remove('refresh_token');
 
-    try { await _supabase.auth.signOut(); } catch (_) {}
+    try {
+      await _supabase.auth.signOut();
+    } catch (_) {}
   }
 
   Future<void> ensureUserRow() async {
     final uid = _supabase.auth.currentUser?.id;
     if (uid == null) return;
-    final existing = await _supabase.from('users').select('id').eq('id', uid).maybeSingle();
+    final existing = await _supabase
+        .from('users')
+        .select('id')
+        .eq('id', uid)
+        .maybeSingle();
     if (existing == null) {
       await _supabase.from('users').insert({'id': uid});
     }
@@ -175,12 +187,12 @@ class AuthService {
   }
 
   Future<void> completeEmailSignUp({
-    required String userId,    // uuid
+    required String userId, // uuid
     required String email,
     required String password,
     required String nickname,
-    required String birth,     // YYYY-MM-DD
-    required String gender,    // 'm' | 'f'
+    required String birth, // YYYY-MM-DD
+    required String gender, // 'm' | 'f'
   }) async {
     final res = await httpClient
         .post(
@@ -227,14 +239,13 @@ class AuthService {
       session = (parsed['session'] as Map).cast<String, dynamic>();
     } else if (parsed is Map) {
       // 레거시 포맷 방어
-      final token = (parsed['access_token'] ??
+      final token =
+          (parsed['access_token'] ??
           parsed['accessToken'] ??
           parsed['token'] ??
           parsed['jwt']);
       if (token is String && token.isNotEmpty) {
-        session = {
-          'access_token': token,
-        };
+        session = {'access_token': token};
       }
       if (parsed['refresh_token'] is String) {
         session['refresh_token'] = parsed['refresh_token'];
@@ -298,7 +309,11 @@ class AuthService {
         .post(
           _u('/auth/reset-password'),
           headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'email': email, 'password': newPassword, 'code': code}),
+          body: jsonEncode({
+            'email': email,
+            'password': newPassword,
+            'code': code,
+          }),
         )
         .timeout(_defaultTimeout);
     if (res.statusCode != 200) {
@@ -307,14 +322,40 @@ class AuthService {
   }
 
   // ─────────────── 유저 정보 수정 ───────────────
+  // ─────────────── 유저 정보 수정 ───────────────
   Future<void> patchUserInfo({
     required String nickname,
     required String genderLetter,
     required String birthday,
   }) async {
-    final token = _supabase.auth.currentSession?.accessToken;
+    // 1) Supabase JWT 시도
+    String? token = _supabase.auth.currentSession?.accessToken;
+
+    // 2) 내 백엔드 JWT(SecureStorage) 폴백
     if (token == null || token.isEmpty) {
-      throw Exception('세션 없음 (Supabase JWT null)');
+      token = await storage.readAccessToken();
+    }
+
+    // 3) 레거시 SharedPreferences 폴백
+    if (token == null || token.isEmpty) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final spToken = prefs.getString('access_token');
+        if (spToken != null && spToken.isNotEmpty) token = spToken;
+      } catch (_) {}
+    }
+
+    // 4) refresh로 재발급 시도
+    if (token == null || token.isEmpty) {
+      final ok = await refreshAccessToken();
+      if (ok) {
+        token = await storage.readAccessToken();
+      }
+    }
+
+    // 5) 최종 체크
+    if (token == null || token.isEmpty) {
+      throw Exception('로그인 정보가 만료되었습니다. 다시 로그인해 주세요.');
     }
 
     final res = await httpClient
@@ -396,11 +437,12 @@ class AuthService {
       try {
         final body = jsonDecode(res.body);
         if (body is Map) {
-          access = (body['access_token'] ??
-                    body['accessToken'] ??
-                    body['token'] ??
-                    body['jwt'])
-              ?.toString();
+          access =
+              (body['access_token'] ??
+                      body['accessToken'] ??
+                      body['token'] ??
+                      body['jwt'])
+                  ?.toString();
 
           final newRefresh = body['refresh_token'] ?? body['refreshToken'];
           if (newRefresh is String && newRefresh.isNotEmpty) {
@@ -426,7 +468,7 @@ class AuthService {
   Future<bool> reloginWithSavedCredentials() async {
     final payload = await storage.readLoginPayload();
     final email = payload is Map ? payload['email'] as String? : null;
-    final pw    = payload is Map ? payload['password'] as String? : null;
+    final pw = payload is Map ? payload['password'] as String? : null;
 
     if (email == null || pw == null || email.isEmpty || pw.isEmpty) {
       return false;

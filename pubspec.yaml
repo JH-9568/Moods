@@ -59,6 +59,8 @@ flutter:
     - assets/fonts/icons/gallery.svg
     - assets/fonts/icons/moodslogo.svg
     - assets/fonts/icons/cafe.png
+    - assets/fonts/icons/skate_moods.png
+    - assets/fonts/icons/my_page_moods.png
     - assets/fonts/
 
   fonts:

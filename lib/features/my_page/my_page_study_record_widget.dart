@@ -10,6 +10,7 @@ import 'package:moods/common/constants/text_styles.dart';
 import 'package:moods/features/home/widget/study_record/home_record_controller.dart';
 import 'package:moods/features/home/widget/study_record/home_record_service.dart';
 import 'package:moods/features/home/widget/study_record/home_record_empty.dart';
+import 'package:go_router/go_router.dart';
 
 /// 마이페이지용 "공부 기록" 카드 위젯 (하얀 카드 + 제목/설명 + 캘린더 아이콘 + 가로 스크롤 카드)
 class MyPageStudyRecordWidget extends ConsumerWidget {
@@ -56,21 +57,29 @@ class MyPageStudyRecordWidget extends ConsumerWidget {
                 ),
               ),
               // 캘린더 아이콘
-              Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: AppColors.border,
+              // 캘린더 아이콘 버튼
+              Semantics(
+                button: true,
+                label: '캘린더 열기',
+                child: InkWell(
+                  onTap: () => context.push('/profile/calendar'),
                   borderRadius: BorderRadius.circular(6),
-                ),
-                child: Transform.translate(
-                  // ⬅️ 위치 조정 (x, y 값은 필요에 맞게 조절하세요)
-                  offset: const Offset(-5, 2),
-                  child: SvgPicture.asset(
-                    'assets/fonts/icons/calender.svg',
-                    width: 20,
-                    height: 20,
-                    fit: BoxFit.none, // 아이콘이 scale되지 않고 원래 크기 유지
+                  child: Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: AppColors.border,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Transform.translate(
+                      offset: const Offset(-5, 2), // 기존 위치 보정 유지
+                      child: SvgPicture.asset(
+                        'assets/fonts/icons/calender.svg',
+                        width: 20,
+                        height: 20,
+                        fit: BoxFit.none, // 아이콘 원크기 유지
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -155,7 +164,7 @@ class _RecordCard extends StatelessWidget {
             right: 0,
             bottom: 0,
             child: Container(
-              height: 50, // ⬆️ 40 -> 50 (한 줄 추가되니 살짝 키움)
+              height: 45, // ⬆️ 40 -> 50 (한 줄 추가되니 살짝 키움)
               color: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
               child: Column(
@@ -213,7 +222,7 @@ class _RecordCard extends StatelessWidget {
   }
 }
 
-/// 로딩 스켈레톤 (마이페이지용)
+/// 로딩 스켈레톤 (마이페이지용) — 가로 스크롤로 변경하여 오버플로우 방지
 class _RecordSkeleton extends StatelessWidget {
   const _RecordSkeleton();
 
@@ -221,16 +230,16 @@ class _RecordSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       height: 123.44,
-      child: Row(
-        children: List.generate(
-          4,
-          (_) => Container(
-            width: 79,
-            margin: const EdgeInsets.only(right: 16),
-            decoration: BoxDecoration(
-              color: AppColors.unchecked,
-              borderRadius: BorderRadius.circular(8),
-            ),
+      child: ListView.separated(
+        padding: EdgeInsets.zero,
+        scrollDirection: Axis.horizontal,
+        itemCount: 4,
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        itemBuilder: (_, __) => Container(
+          width: 79,
+          decoration: BoxDecoration(
+            color: AppColors.unchecked,
+            borderRadius: BorderRadius.circular(8),
           ),
         ),
       ),

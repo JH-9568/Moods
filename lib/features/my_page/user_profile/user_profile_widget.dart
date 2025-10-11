@@ -1,6 +1,7 @@
+// lib/features/my_page/user_profile/user_profile_widget.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
+import 'package:go_router/go_router.dart';
 import 'package:moods/common/constants/colors.dart';
 import 'package:moods/common/constants/text_styles.dart';
 import 'package:moods/features/my_page/user_profile/user_profile_controller.dart';
@@ -24,9 +25,13 @@ class UserProfileWidget extends ConsumerWidget {
     }
 
     final nickname = state.profile?.nickname.trim();
-    final birthday = state.profile?.birthday?.trim();
+    final birthday = state.profile?.birthday?.trim(); // 보통 'YYYY-MM-DD'
     final email = state.profile?.email.trim();
-    final genderRaw = (state.profile?.gender ?? '').trim().toLowerCase();
+    final genderRaw = (state.profile?.gender ?? '')
+        .trim()
+        .toLowerCase(); // 'male'|'female' 등
+
+    // 표시용(한글)
     final genderKo = genderRaw == 'male'
         ? '남'
         : genderRaw == 'female'
@@ -49,19 +54,17 @@ class UserProfileWidget extends ConsumerWidget {
         : (email == null || email.isEmpty ? '-' : email);
 
     return Container(
-      // 아래 통계와 폭을 맞추기 위해 고정 300 → 꽉 채움
       width: double.infinity,
       height: 69,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: AppColors.main,
+        color: AppColors.room_color2,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
-        // 좌/우 1:1 분할 + 자식들을 높이에 맞춰 늘려서 정렬 제어가 쉽도록
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // 좌측: 닉네임 - 세로 '정중앙'
+          // 좌측: 닉네임
           Expanded(
             child: Align(
               alignment: Alignment.topCenter,
@@ -77,14 +80,12 @@ class UserProfileWidget extends ConsumerWidget {
             ),
           ),
 
-          // 가운데 여백 제거(수직 기준선을 아래 통계와 정확히 맞추기 위함)
-
-          // 우측: 생일+성별 / 이메일 / 수정하기 - 좌측정렬 & 위쪽부터 시작
+          // 우측: 생일/성별/이메일/수정하기
           Expanded(
             child: Padding(
               padding: const EdgeInsets.only(left: 15),
               child: Column(
-                mainAxisSize: MainAxisSize.min, // 내용만큼만 세로 사용 (오버플로우 방지 도움)
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
@@ -93,16 +94,34 @@ class UserProfileWidget extends ConsumerWidget {
                     overflow: TextOverflow.ellipsis,
                     style: AppTextStyles.small.copyWith(color: Colors.white),
                   ),
-                  const SizedBox(height: 1), // ↓ 오버플로우 2px 방지: 2→1로 줄임
+                  const SizedBox(height: 1),
                   Text(
                     emailText,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: AppTextStyles.small.copyWith(color: Colors.white),
                   ),
-                  const SizedBox(height: 1), // ↓ 동일
+                  const SizedBox(height: 1),
+
+                  // 🔽🔽🔽 여기 변경: 탭 시 /profile/edit 로 이동 (초깃값 전달)
                   InkWell(
-                    onTap: onEdit,
+                    onTap:
+                        onEdit ??
+                        () {
+                          // 서버의 gender 값이 'male'|'female'인 경우 letter로 변환
+                          final genderLetter = genderRaw == 'male'
+                              ? 'm'
+                              : (genderRaw == 'female' ? 'f' : '');
+
+                          context.push(
+                            '/profile/edit',
+                            extra: {
+                              'nickname': nickname ?? '',
+                              'birthday': birthday ?? '', // 'YYYY-MM-DD' 기대
+                              'gender': genderLetter, // 'm'|'f' 또는 ''
+                            },
+                          );
+                        },
                     child: Text(
                       '수정하기',
                       maxLines: 1,
@@ -114,6 +133,8 @@ class UserProfileWidget extends ConsumerWidget {
                       ),
                     ),
                   ),
+
+                  // 🔼🔼🔼
                   if (state.error != null && state.error!.isNotEmpty) ...[
                     const SizedBox(height: 2),
                     Text(

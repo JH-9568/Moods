@@ -22,6 +22,10 @@ import 'package:moods/features/record/view/record_timer_screen.dart';
 import 'package:moods/features/record/view/record_card_preview.dart';
 import 'package:moods/features/record/controller/record_controller.dart';
 import 'package:moods/features/record/view/record_finalize_step1.dart';
+import 'package:moods/features/my_page/edit_profile/edit_profile_screen.dart';
+import 'package:moods/features/calendar/widget/calendar_widget.dart';
+import 'package:moods/common/constants/colors.dart';
+import 'package:moods/common/widgets/back_button.dart';
 
 class RouterPing extends ChangeNotifier {
   void ping() => notifyListeners();
@@ -162,6 +166,24 @@ GoRouter createAppRouter() {
           return RecordTimerScreen(startArgs: args);
         },
       ),
+      GoRoute(
+        path: '/profile/edit',
+        builder: (context, state) {
+          // MyPage에서 전달한 초기값 (없어도 동작)
+          final extra = (state.extra is Map) ? state.extra as Map : const {};
+          final nickname = extra['nickname'] as String?;
+          final birthday =
+              extra['birthday'] as String?; // 'YYYY-MM-DD' or 'YYYY.MM.DD'
+          final gender = extra['gender'] as String?; // 'm'|'f' or '남성'|'여성'
+
+          return EditProfileScreen(
+            initialNickname: nickname,
+            initialBirthday: birthday,
+            initialGender: gender,
+            onSuccessRoute: '/profile', // 저장 성공 후 마이페이지로 복귀
+          );
+        },
+      ),
 
       // --- 탭 구조: ShellRoute ---
       ShellRoute(
@@ -196,6 +218,30 @@ GoRouter createAppRouter() {
             path: '/profile',
             pageBuilder: (_, __) =>
                 const NoTransitionPage(child: MyPageWidget()),
+          ),
+          GoRoute(
+            path: '/profile/calendar',
+            builder: (context, state) {
+              return Scaffold(
+                backgroundColor: AppColors.background,
+                appBar: AppBar(
+                  backgroundColor: AppColors.sub,
+                  elevation: 0,
+                  leading: const GlobalBackButton(color: Colors.white),
+                  centerTitle: true,
+                  title: const Text(
+                    '기록 캘린더',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+                body: const SafeArea(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: CalendarWidget(), // 기존 ExploreScreen에서 쓰던 위젯 그대로
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),

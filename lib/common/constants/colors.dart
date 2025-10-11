@@ -11,6 +11,8 @@ class AppColors {
   static const text_color1 = Color.fromRGBO(82, 62, 48, 1);
   static const text_color2 = Color.fromRGBO(130, 126, 122, 1);
   static const text_color3 = Color.fromRGBO(195, 188, 181, 1);
+  static const room_color1 = Color.fromRGBO(132, 109, 96, 1);
+  static const room_color2 = Color.fromRGBO(113, 90, 77, 1);
   //  Default
   static const Color white = Color(0xFFFFFFFF);
   static const Color black = Color(0xFF000000);
