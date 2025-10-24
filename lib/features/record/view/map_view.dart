@@ -2,12 +2,13 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
-
+import 'package:moods/common/constants/text_styles.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:moods/common/constants/api_constants.dart'; // baseUrl
+import 'package:moods/common/constants/colors_j.dart';
 
 /// Places / Geocoding API Key (빌드시 --dart-define 권장)
 const MAPS_API_KEY = String.fromEnvironment(
@@ -457,23 +458,39 @@ class _MapSelectPageState extends State<MapSelectPage> {
     final showingServer = _serverResults.isNotEmpty;
 
     // AppBar 하단(검색/현위치)의 총 높이
-    const double appBarBottomH = 96;
+    const double appBarBottomH = 104; // ↓ 살짝 더 아래로
 
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
+        // 제목은 가운데 유지
         centerTitle: true,
+        // 살짝 더 높여 여유
+        toolbarHeight: 60,
         iconTheme: const IconThemeData(color: Colors.black),
-        title: const Text(
-          '지도에서 선택',
-          style: TextStyle(fontWeight: FontWeight.w700, color: Colors.black),
+
+        // 뒤로가기 잘림 방지 + 좌측 여백
+        leadingWidth: 56,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 8),
+          child: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new, size: 22),
+            onPressed: () => Navigator.of(context).pop(),
+            splashRadius: 22,
+          ),
+        ),
+
+        // ⬇️ 제목을 살짝 더 아래로 (이 값으로 미세조정)
+        title: const Padding(
+          padding: EdgeInsets.only(top: 6), // ← 2~8 사이에서 취향껏 조정 가능
+          child: Text('지도에서 선택', style: AppTextStyles.subtitle),
         ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(appBarBottomH),
           child: Container(
             color: Colors.white,
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 12), // ↑ 상단 패딩 +6
             child: Column(
               children: [
                 // 검색창
@@ -487,18 +504,31 @@ class _MapSelectPageState extends State<MapSelectPage> {
                     prefixIcon: const Icon(Icons.search),
                     isDense: true,
                     filled: true,
-                    fillColor: Colors.white,
+                    fillColor: AppColorsJ.gray2, // 배경색 gray/2
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide.none, // 테두리 없음
                     ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide.none,
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    hintStyle: const TextStyle(color: AppColorsJ.grayText),
                   ),
                 ),
                 const SizedBox(height: 8),
-                // 현위치 칩(작은 박스)
+                // 현위치 칩 + 오른쪽 아이콘 버튼
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(8),
@@ -507,7 +537,8 @@ class _MapSelectPageState extends State<MapSelectPage> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.location_on_outlined, size: 16, color: Colors.black54),
+                          const Icon(Icons.location_on_outlined,
+                              size: 16, color: Colors.black54),
                           const SizedBox(width: 6),
                           ConstrainedBox(
                             constraints: const BoxConstraints(maxWidth: 240),
@@ -515,19 +546,22 @@ class _MapSelectPageState extends State<MapSelectPage> {
                               '현위치: ${_humanAddress.isEmpty ? '확인 중…' : _humanAddress}',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 12, color: Colors.black54),
+                              style: const TextStyle(
+                                  fontSize: 12, color: Colors.black54),
                             ),
                           ),
                         ],
                       ),
                     ),
                     const Spacer(),
-                    TextButton(
+                    IconButton(
+                      tooltip: '현위치로 이동',
                       onPressed: () async {
                         setState(() => _loading = true);
                         await _bootstrap();
                       },
-                      child: const Text('현위치', style: TextStyle(fontWeight: FontWeight.w600)),
+                      icon: const Icon(Icons.gps_fixed,
+                          size: 22, color: AppColorsJ.main3),
                     ),
                   ],
                 ),
@@ -579,12 +613,14 @@ class _MapSelectPageState extends State<MapSelectPage> {
                       final s = _suggestions[i];
                       return ListTile(
                         dense: true,
-                        title: Text(s.label, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        title: Text(s.label,
+                            maxLines: 1, overflow: TextOverflow.ellipsis),
                         onTap: () async {
                           _suggestions = [];
                           setState(() {});
                           // 선택 즉시 디테일 받아 pop
-                          final d = await _fetchDetailsFor(s.placeId, nameFallback: s.label);
+                          final d = await _fetchDetailsFor(s.placeId,
+                              nameFallback: s.label);
                           await _select(d);
                         },
                       );
@@ -618,7 +654,8 @@ class _MapSelectPageState extends State<MapSelectPage> {
                     const SizedBox(height: 8),
                     // 그립바
                     Container(
-                      width: 44, height: 4,
+                      width: 44,
+                      height: 4,
                       decoration: BoxDecoration(
                         color: const Color(0x22000000),
                         borderRadius: BorderRadius.circular(100),
@@ -638,27 +675,33 @@ class _MapSelectPageState extends State<MapSelectPage> {
 
                                 final addr = _addrCache[p.spaceId] ?? '';
                                 return ListTile(
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                                  leading: const Icon(Icons.place_outlined, size: 28),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 10),
+                                  leading:
+                                      const Icon(Icons.place_outlined, size: 28),
                                   title: Text(
                                     p.name,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(fontWeight: FontWeight.w700),
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w700),
                                   ),
                                   subtitle: Text(
                                     addr.isEmpty ? '주소 불러오는 중…' : addr,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(fontSize: 12, color: Colors.black45),
+                                    style: const TextStyle(
+                                        fontSize: 12, color: Colors.black45),
                                   ),
                                   trailing: Text(
                                     _fmtDistance(p.distance),
-                                    style: const TextStyle(fontSize: 12, color: Colors.black54),
+                                    style: const TextStyle(
+                                        fontSize: 12, color: Colors.black54),
                                   ),
                                   onTap: () async {
                                     // 상세로 좌표/주소 확정 후 pop
-                                    final d = await _fetchDetailsFor(p.spaceId, nameFallback: p.name);
+                                    final d = await _fetchDetailsFor(p.spaceId,
+                                        nameFallback: p.name);
                                     await _select(d);
                                   },
                                 );
@@ -672,27 +715,33 @@ class _MapSelectPageState extends State<MapSelectPage> {
                                 final p = _googleResults[i];
                                 final dist = (_center == null)
                                     ? null
-                                    : _haversine(_center!.latitude, _center!.longitude, p.lat, p.lng);
+                                    : _haversine(_center!.latitude,
+                                        _center!.longitude, p.lat, p.lng);
                                 return ListTile(
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                                  leading: const Icon(Icons.place_outlined, size: 28),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 10),
+                                  leading:
+                                      const Icon(Icons.place_outlined, size: 28),
                                   title: Text(
                                     p.name,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(fontWeight: FontWeight.w700),
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w700),
                                   ),
                                   subtitle: Text(
                                     p.address,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(fontSize: 12, color: Colors.black45),
+                                    style: const TextStyle(
+                                        fontSize: 12, color: Colors.black45),
                                   ),
                                   trailing: dist == null
                                       ? null
                                       : Text(
                                           _fmtDistance(dist),
-                                          style: const TextStyle(fontSize: 12, color: Colors.black54),
+                                          style: const TextStyle(
+                                              fontSize: 12, color: Colors.black54),
                                         ),
                                   onTap: () => _select(_SelectedLike(
                                     name: p.name,
@@ -739,7 +788,8 @@ class _Place {
     final addr = (m['formattedAddress'] ?? '').toString();
     final lat = (m['location']?['latitude'] ?? 0).toDouble();
     final lng = (m['location']?['longitude'] ?? 0).toDouble();
-    return _Place(placeId: placeId, name: name, address: addr, lat: lat, lng: lng);
+    return _Place(
+        placeId: placeId, name: name, address: addr, lat: lat, lng: lng);
   }
 }
 
@@ -748,7 +798,8 @@ class _ServerPlace {
   final String name;
   final double distance;  // meters
 
-  _ServerPlace({required this.spaceId, required this.name, required this.distance});
+  _ServerPlace(
+      {required this.spaceId, required this.name, required this.distance});
 
   factory _ServerPlace.fromJson(Map<String, dynamic> m) {
     return _ServerPlace(

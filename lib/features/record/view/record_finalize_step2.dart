@@ -391,7 +391,7 @@ await showRecordCardPreviewForCreation(context, previewData);
       const SizedBox(height: 10),
       Wrap(
         spacing: 8,
-        runSpacing: 8,
+        runSpacing: 1,
         children: _PLACE_FEATURES.map((t) {
           final on = _selectedPlaceTags.contains(t);
           return ChoiceChip(

@@ -66,7 +66,7 @@ class FinalizeStep1Screen extends ConsumerWidget {
     final canNext = st.selectedMoods.isNotEmpty;
 
     return Scaffold(
-      backgroundColor: AppColorsJ.main1,
+      backgroundColor: const Color(0xFFFAF7F5),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
