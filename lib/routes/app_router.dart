@@ -3,10 +3,11 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:moods/features/my_page/my_page_widget.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
+import 'package:moods/features/my_page/user_profile/user_profile_controller.dart';
 import 'package:moods/features/auth/view/start_screen.dart';
 import 'package:moods/features/auth/view/register_screen.dart';
 import 'package:moods/features/auth/view/kakao_sign_up.dart';
@@ -26,6 +27,7 @@ import 'package:moods/features/my_page/edit_profile/edit_profile_screen.dart';
 import 'package:moods/features/calendar/widget/calendar_widget.dart';
 import 'package:moods/common/constants/colors.dart';
 import 'package:moods/common/widgets/back_button.dart';
+import 'package:moods/providers.dart';
 
 class RouterPing extends ChangeNotifier {
   void ping() => notifyListeners();
@@ -54,7 +56,7 @@ GoRouter createAppRouter() {
   final authStream = supa.auth.onAuthStateChange;
 
   return GoRouter(
-    initialLocation: '/home',
+    initialLocation: '/start',
     refreshListenable: Listenable.merge([
       GoRouterRefresh(authStream),
       routerPing,
@@ -180,8 +182,16 @@ GoRouter createAppRouter() {
             initialNickname: nickname,
             initialBirthday: birthday,
             initialGender: gender,
-            onSuccessRoute: '/profile', // 저장 성공 후 마이페이지로 복귀
+            onSuccessRoute: '/profile',
           );
+        },
+        onExit: (context, state) {
+          // ✅ 프로필 수정 후 '/profile'로 돌아갈 때 userProfileControllerProvider를 무효화
+          // 이렇게 하면 MyPageWidget이 최신 프로필 정보를 다시 불러옵니다.
+          final container = ProviderScope.containerOf(context);
+          container.invalidate(userProfileControllerProvider);
+          print('🔄 Invalidated userProfileControllerProvider on exit from edit profile.');
+          return true;
         },
       ),
 

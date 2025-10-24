@@ -1,7 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter/services.dart' show rootBundle; // ✅ 디버그용 asset 체크
+import 'package:flutter/services.dart' show rootBundle; // 디버그용 asset 체크
 
 import 'package:moods/common/constants/colors.dart';
 import 'package:moods/features/my_page/setting/setting_widget.dart';
@@ -23,40 +23,63 @@ class MyPageWidget extends ConsumerStatefulWidget {
   ConsumerState<MyPageWidget> createState() => _MyPageWidgetState();
 }
 
-class _MyPageWidgetState extends ConsumerState<MyPageWidget> {
+class _MyPageWidgetState extends ConsumerState<MyPageWidget>
+    with TickerProviderStateMixin {
   static const double _headerTotalHeight = 355.0;
   static const double _profileTop = 185.0;
   static const double _countLift = -42.0;
+
+  late final AnimationController _mooseCtrl;
+  late final CurvedAnimation _mooseCurve;
 
   @override
   void initState() {
     super.initState();
 
-    // ✅ 디버그: JPEG 파일 존재 확인
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await _debugCheckImageAsset();
-      if (!mounted) return;
+    // 무스(스케이트) 이동 애니메이션
+    _mooseCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    );
+    _mooseCurve = CurvedAnimation(parent: _mooseCtrl, curve: Curves.easeInOut);
+
+    _mooseCtrl.addStatusListener((st) async {
+      if (st == AnimationStatus.completed) {
+        await Future.delayed(const Duration(milliseconds: 700)); // 집 앞에서 잠깐 정지
+        _mooseCtrl.value = 0; // 오른쪽 바깥으로 리셋(순간 이동)
+        _mooseCtrl.forward();
+      }
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _mooseCtrl.forward(); // 첫 시작
+
+      // 디버그 asset 체크 + 통계 로딩
+      _debugCheckImageAsset();
       ref.read(studyCountControllerProvider.notifier).loadIfNeeded();
       ref.read(studySpaceCountControllerProvider.notifier).loadIfNeeded();
     });
   }
 
+  @override
+  void dispose() {
+    _mooseCtrl.dispose();
+    super.dispose();
+  }
+
   Future<void> _debugCheckImageAsset() async {
-    const path = 'assets/fonts/icons/cafe.png'; // ✅ 실제 경로
+    const path = 'assets/fonts/icons/cafe.png';
     try {
       final data = await rootBundle.load(path);
-      debugPrint(
-        '✅ cafe.jpeg loaded successfully (${data.lengthInBytes} bytes)',
-      );
+      debugPrint('✅ cafe.png loaded (${data.lengthInBytes}B)');
     } catch (e) {
-      debugPrint('❌ cafe.jpeg load failed: $e');
+      debugPrint('❌ cafe.png load failed: $e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final double statusBar = MediaQuery.of(context).padding.top;
-    const headerColor = AppColors.main;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -68,103 +91,137 @@ class _MyPageWidgetState extends ConsumerState<MyPageWidget> {
             Container(
               width: double.infinity,
               height: _headerTotalHeight + statusBar,
-              color: Colors.transparent, // 배경은 painter가 칠함
+              color: Colors.transparent,
               padding: EdgeInsets.only(top: statusBar),
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Positioned(
-                    top: -statusBar,
-                    left: 0,
-                    right: 0,
-                    child: const RoomBg(height: 355),
-                  ),
+              // ⬇️ Stack 전체를 AnimatedBuilder로 감싸서 매 프레임 리빌드
+              child: AnimatedBuilder(
+                animation: _mooseCtrl,
+                builder: (context, _) {
+                  final screenW = MediaQuery.of(context).size.width;
+                  final double startX = screenW + 160; // 오른쪽 화면 바깥
+                  const double endX = 90.0;          // 집 앞(기존 left 값)
+                  const double topY = 58.0;
 
-                  // 프로필 카드
-                  const Positioned(
-                    left: 16,
-                    right: 16,
-                    top: _profileTop,
-                    child: UserProfileWidget(),
-                  ),
+                  // x 위치(직선 이동)
+                  final double x =
+                      lerpDouble(startX, endX, _mooseCurve.value)!;
 
-                  // ────────────────── 카페 + 타원 그림자 (기존 그대로) ──────────────────
-                  Positioned(
-                    left: -23,
-                    top: 0,
-                    child: Stack(
-                      alignment: Alignment.topCenter,
-                      children: [
-                        // 카페 하단 타원
-                        Transform.translate(
-                          offset: const Offset(-18, 162),
-                          child: ImageFiltered(
-                            imageFilter: ImageFilter.blur(
-                              sigmaX: 40,
-                              sigmaY: 5,
-                            ),
-                            child: Opacity(
-                              opacity: 1,
-                              child: SizedBox(
-                                width: 130,
-                                height: 40,
-                                child: ClipOval(
-                                  child: const ColoredBox(
-                                    color: AppColors.text_color1,
+                  // 살짝 위/아래 바운스(옵션)
+                  final double bounce = lerpDouble(
+                    -2,
+                    2,
+                    (1 - (2 * (_mooseCurve.value - 0.5)).abs()),
+                  )!;
+
+                  return Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Positioned(
+                        top: -statusBar,
+                        left: 0,
+                        right: 0,
+                        child: const RoomBg(height: 355),
+                      ),
+
+                      // 프로필 카드
+                      const Positioned(
+                        left: 16,
+                        right: 16,
+                        top: _profileTop,
+                        child: UserProfileWidget(),
+                      ),
+
+                      // ────────────────── 카페 + 타원 그림자 ──────────────────
+                      Positioned(
+                        left: -23,
+                        top: 0,
+                        child: Stack(
+                          alignment: Alignment.topCenter,
+                          children: [
+                            // 카페 하단 타원
+                            Transform.translate(
+                              offset: const Offset(-18, 162),
+                              child: ImageFiltered(
+                                imageFilter:
+                                    ImageFilter.blur(sigmaX: 40, sigmaY: 5),
+                                child: Opacity(
+                                  opacity: 1,
+                                  child: SizedBox(
+                                    width: 130,
+                                    height: 40,
+                                    child: ClipOval(
+                                      child:
+                                          Container(color: AppColors.text_color1),
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
-                          ),
+                            // 카페 PNG
+                            Opacity(
+                              opacity: 1,
+                              child: Image.asset(
+                                'assets/fonts/icons/cafe.png',
+                                width: 200,
+                                height: 200,
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                          ],
                         ),
-                        // 카페 PNG
-                        Opacity(
-                          opacity: 1,
-                          child: Image.asset(
-                            'assets/fonts/icons/cafe.png',
-                            width: 200,
-                            height: 200,
-                            fit: BoxFit.contain,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                      ),
 
-                  // ────────────────── 스케이트 무스 + 타원 그림자 (신규) ──────────────────
-                  // 디자인에 맞게 위치/크기는 살짝만 가늠치로 넣어두었어. 필요하면 수치만 조정!
-                  Positioned(
-                    left: 165, // ← 무스의 X 위치 (원하는 값으로 미세 조정)
-                    top: 58, // ← 무스의 Y 위치
-                    child: Stack(
-                      alignment: Alignment.topCenter,
-                      children: [
-                        // 무스 PNG
-                        Opacity(
-                          opacity: 1,
-                          child: Image.asset(
-                            'assets/fonts/icons/skate_moods.png',
-                            width: 140,
-                            height: 140,
-                            fit: BoxFit.contain,
-                          ),
+                      // ────────────────── 스케이트 무스(애니메이션) ──────────────────
+                      Positioned(
+                        left: x,               // ← 직계 자식으로 Positioned 배치 (에러 해결)
+                        top: topY + bounce,
+                        child: Stack(
+                          alignment: Alignment.topCenter,
+                          children: [
+                            // 바닥 타원 그림자
+                            Transform.translate(
+                              offset: const Offset(0, 120),
+                              child: ImageFiltered(
+                                imageFilter:
+                                    ImageFilter.blur(sigmaX: 30, sigmaY: 6),
+                                child: Opacity(
+                                  opacity: 0.35,
+                                  child: SizedBox(
+                                    width: 90,
+                                    height: 26,
+                                    child: ClipOval(
+                                      child: Container(color: Colors.black),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            // 무스 PNG
+                            Image.asset(
+                              'assets/fonts/icons/skate_moods.png',
+                              width: 140,
+                              height: 140,
+                              fit: BoxFit.contain,
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
+                      ),
 
-                  // ───────────────────────────── Moods 텍스트 ─────────────────────────────
-                  const Positioned(
-                    right: 5,
-                    top: 0,
-                    child: Image(
-                      image: AssetImage('assets/fonts/icons/my_page_moods.png'),
-                      width: 120, // 원본 비율에 맞춰 조정 (필요 시 변경)
-                      height: 35, // 원본 비율에 맞춰 조정
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                ],
+                      // ───────────────────────────── Moods 텍스트 ─────────────────────────────
+                      const Positioned(
+                        right: 5,
+                        top: 0,
+                        child: Image(
+                          image:
+                              AssetImage('assets/fonts/icons/my_page_moods.png'),
+                          width: 120,
+                          height: 35,
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
 
@@ -174,8 +231,8 @@ class _MyPageWidgetState extends ConsumerState<MyPageWidget> {
               color: AppColors.background,
               child: Transform.translate(
                 offset: const Offset(0, _countLift - 60),
-                child: Column(
-                  children: const [
+                child: const Column(
+                  children: [
                     SpaceStudyCountWidget(),
                     SizedBox(height: 20),
                     Padding(

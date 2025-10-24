@@ -129,7 +129,10 @@ class CalendarController extends StateNotifier<CalendarState> {
   DateTime? _inFlightMonth;
 
   CalendarController(this.ref, this._svc, {required DateTime initialMonth})
-    : super(CalendarState(month: initialMonth));
+      : super(CalendarState(month: initialMonth)) {
+    // ✅ 컨트롤러 생성 시 즉시 데이터 로드
+    fetchMonth();
+  }
 
   /// ✅ 표시 규칙
   /// - 1시간 이상  → "H시간 M분" (초 제외)

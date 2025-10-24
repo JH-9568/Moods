@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:moods/routes/app_router.dart';
 import 'common/theme/app_theme.dart';
+import 'package:moods/features/my_page/user_profile/user_profile_controller.dart'; // userProfileControllerProvider 임포트 추가
 import 'package:moods/providers.dart';
 import 'package:moods/features/auth/controller/auth_controller.dart';
 
@@ -155,6 +156,7 @@ void initState() {
       container.read(authTokenProvider.notifier).state = t;
       await prefs.setString('access_token', t);
       print('🔄 AuthSyncer: signedIn → token set ${t.substring(0, 12)}•••');
+      container.invalidate(userProfileControllerProvider); // ✅ 새 로그인 시 프로필 정보 무효화
       routerPing.ping(); // 로그인 반영
       return;
     }
@@ -162,6 +164,7 @@ void initState() {
     // 3) Supabase 로그아웃만 클리어
     if (event == AuthChangeEvent.signedOut) {
       container.read(authTokenProvider.notifier).state = null;
+      container.invalidate(userProfileControllerProvider); // ✅ 로그아웃 시 프로필 정보 무효화
       await prefs.remove('access_token');
       print('🔄 AuthSyncer: signedOut → token cleared');
       routerPing.ping();

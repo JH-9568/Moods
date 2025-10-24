@@ -9,9 +9,10 @@ import 'package:moods/common/constants/text_styles.dart';
 import 'package:moods/features/record/controller/record_controller.dart';
 import 'package:moods/features/home/widget/study_count/study_count_controller.dart';
 import 'package:moods/features/home/widget/study_record/home_record_controller.dart';
-import 'package:moods/features/my_page/space_count/space_count_controller.dart';
+import 'package:moods/features/my_page/space_count/space_count_controller.dart' hide studySpaceCountControllerProvider;
 import 'package:moods/features/home/widget/study_time/study_time_controller.dart';
 import 'package:moods/features/home/widget/my_ranking/my_ranking_controller.dart';
+import 'package:moods/providers.dart';
 
 enum RecordCardPreviewOrigin {
   creation, // 새 기록카드 생성 직후
@@ -383,6 +384,7 @@ class _RecordCardOverlay extends StatelessWidget {
     ref.invalidate(homeRecordControllerProvider);
     ref.invalidate(studySpaceCountControllerProvider);
     ref.invalidate(myRankingControllerProvider);
+    ref.invalidate(calendarControllerProvider);
 
     _close(context);
     WidgetsBinding.instance.addPostFrameCallback((_) {

@@ -97,8 +97,8 @@ class _StartScreenState extends ConsumerState<StartScreen> {
                       style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: AppColorsJ.black),
                     ),
                     const SizedBox(height: 8),
-                    SvgPicture.asset(
-                      'assets/fonts/icons/moodslogo.svg',
+                    Image.asset( // ✅ SvgPicture.asset -> Image.asset 으로 변경
+                      'assets/fonts/icons/moodslogo.png',
                       width: 148,
                       height: 70,
                     ),
