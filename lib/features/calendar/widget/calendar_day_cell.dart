@@ -145,91 +145,106 @@ class CalendarDayCell extends StatelessWidget {
       final content = SizedBox(
         width: _cardWidth,
         height: _cardHeight,
-        child: ClipRRect(
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              if (imageUrl != null)
-                Image.network(
-                  imageUrl,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                ),
+        // 👇 borderRadius 제거
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (imageUrl != null)
+              Image.network(
+                imageUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+              ),
 
-              // 카드 내부 좌상단 카운트
-              if (dailyCount > 1)
-                Positioned(
-                  left: 3,
-                  top: 4,
-                  child: Container(
-                    width: 13,
-                    height: 13,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: AppColors.sub,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                    child: Text(
-                      '$dailyCount',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 8,
-                        fontWeight: FontWeight.w700,
-                        height: 1.0,
-                      ),
-                    ),
-                  ),
-                ),
-
-              // 하단 정보 레이어(공간명/시간)
-              Align(
-                alignment: Alignment.bottomCenter,
-                child: Container(
-                  width: double.infinity,
-                  color: Colors.white.withOpacity(0.9),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 3,
-                    vertical: 2,
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        spaceName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.black,
-                          height: 1.0,
-                        ),
-                      ),
-                      const SizedBox(height: 1.5),
-                      Text(
-                        studyHHMM,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 8,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black87,
-                          height: 1.0,
-                        ),
-                      ),
+            // 🎨 흰색 그라데이션 오버레이 (위 투명 → 아래 흰색)
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  // 둥근 모서리 제거
+                  borderRadius: BorderRadius.zero,
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.white.withOpacity(0.0),
+                      Colors.white.withOpacity(1.0),
                     ],
+                    stops: const [0.0, 1.0],
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+
+            // 좌상단 카운트
+            if (dailyCount > 1)
+              Positioned(
+                left: 3,
+                top: 4,
+                child: Container(
+                  width: 13,
+                  height: 13,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppColors.sub,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                  child: Text(
+                    '$dailyCount',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w700,
+                      height: 1.0,
+                    ),
+                  ),
+                ),
+              ),
+
+            // ✅ 하단 텍스트 (그대로 유지)
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start, // ✅ 왼쪽 정렬 추가
+                  children: [
+                    Text(
+                      spaceName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 7, // ✅ 사용자 지정 크기
+                        fontWeight: FontWeight.w700,
+                        color: Colors.black,
+                        height: 1.0,
+                      ),
+                    ),
+                    const SizedBox(height: 1.0),
+                    Text(
+                      studyHHMM,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 9, // ✅ 사용자 지정 크기
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                        height: 1.0,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       );
 
       if (onTapRecord == null) return content;
       return InkWell(
         onTap: () => onTapRecord!(items.first.recordId),
-        borderRadius: BorderRadius.circular(6),
+        // 👇 클릭 영역도 모서리 0으로
+        borderRadius: BorderRadius.zero,
         child: content,
       );
     }

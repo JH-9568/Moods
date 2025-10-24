@@ -10,6 +10,8 @@ import 'package:moods/common/constants/text_styles.dart';
 import 'package:moods/features/home/widget/study_record/home_record_controller.dart';
 import 'package:moods/features/home/widget/study_record/home_record_service.dart';
 import 'package:moods/features/home/widget/study_record/home_record_empty.dart';
+import 'package:go_router/go_router.dart';
+import 'package:moods/providers.dart' show calendarControllerProvider;
 
 /// 마이페이지용 "공부 기록" 카드 위젯 (하얀 카드 + 제목/설명 + 캘린더 아이콘 + 가로 스크롤 카드)
 class MyPageStudyRecordWidget extends ConsumerWidget {
@@ -56,21 +58,38 @@ class MyPageStudyRecordWidget extends ConsumerWidget {
                 ),
               ),
               // 캘린더 아이콘
-              Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: AppColors.border,
+              // 캘린더 아이콘 버튼
+              Semantics(
+                button: true,
+                label: '캘린더 열기',
+                child: InkWell(
+                  onTap: () {
+                    // ✅ 캘린더 데이터 미리 요청
+                    final ctrl = ref.read(calendarControllerProvider.notifier);
+                    // (옵션) 혹시 현재 월을 확실히 강제하고 싶으면 아래 라인도 함께:
+                    ctrl.changeMonth(DateTime.now());
+                    ctrl.fetchMonth(); // 현재 month 기준으로 요청
+
+                    // 그리고 캘린더 화면으로 이동
+                    context.push('/profile/calendar');
+                  },
                   borderRadius: BorderRadius.circular(6),
-                ),
-                child: Transform.translate(
-                  // ⬅️ 위치 조정 (x, y 값은 필요에 맞게 조절하세요)
-                  offset: const Offset(-5, 2),
-                  child: SvgPicture.asset(
-                    'assets/fonts/icons/calender.svg',
-                    width: 20,
-                    height: 20,
-                    fit: BoxFit.none, // 아이콘이 scale되지 않고 원래 크기 유지
+                  child: Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: AppColors.border,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Transform.translate(
+                      offset: const Offset(-5, 2),
+                      child: SvgPicture.asset(
+                        'assets/fonts/icons/calender.svg',
+                        width: 20,
+                        height: 20,
+                        fit: BoxFit.none,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -132,37 +151,52 @@ class _RecordCard extends StatelessWidget {
     final hasImage =
         (item.spaceImageUrl != null && item.spaceImageUrl!.trim().isNotEmpty);
 
-    final durationText = item.durationKorean; // 🔹 “2시간 30분” 등
+    final durationText = item.durationKorean; // “2시간 30분” 등
 
     return Container(
       width: 79,
       height: 123.44,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        image: hasImage
-            ? DecorationImage(
-                image: NetworkImage(item.spaceImageUrl!),
-                fit: BoxFit.cover,
-              )
-            : null,
+      decoration: const BoxDecoration(
+        color: Colors.white, // 카드 바탕(이미지 없는 경우 대비)
       ),
       clipBehavior: Clip.antiAlias,
       child: Stack(
         children: [
-          // 하단 정보 바
+          // 배경 이미지
+          if (hasImage)
+            Positioned.fill(
+              child: Image.network(item.spaceImageUrl!, fit: BoxFit.cover),
+            ),
+
+          // 🎨 흰색 그라데이션 오버레이 (위=투명 → 아래=흰색)
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.white.withOpacity(0.0),
+                    Colors.white.withOpacity(1.0),
+                  ],
+                  stops: const [0.0, 1.0],
+                ),
+              ),
+            ),
+          ),
+
+          // ✅ 하단 텍스트 (흰색 박스 제거: color 삭제, padding만 유지)
           Positioned(
             left: 0,
             right: 0,
             bottom: 0,
-            child: Container(
-              height: 50, // ⬆️ 40 -> 50 (한 줄 추가되니 살짝 키움)
-              color: Colors.white,
+            child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 지점명
+                  // 지점명 (그대로)
                   Text(
                     item.spaceName,
                     maxLines: 1,
@@ -175,14 +209,14 @@ class _RecordCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
 
-                  // 🔹 공부 시간(없으면 표시 생략)
+                  // 공부 시간 (그대로, 없으면 표시 X)
                   if (durationText.isNotEmpty) ...[
                     Text(
-                      durationText, // 예: 2시간 30분
+                      durationText,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: AppTextStyles.subtitle.copyWith(
-                        fontSize: 11, // 카드 폭(79)에 맞춰 적당히
+                        fontSize: 11,
                         height: 1.0,
                         fontWeight: FontWeight.w800,
                         color: Colors.black,
@@ -191,7 +225,7 @@ class _RecordCard extends StatelessWidget {
                     const SizedBox(height: 2),
                   ],
 
-                  // 날짜
+                  // 날짜 (그대로)
                   Text(
                     dateText,
                     maxLines: 1,
@@ -213,7 +247,7 @@ class _RecordCard extends StatelessWidget {
   }
 }
 
-/// 로딩 스켈레톤 (마이페이지용)
+/// 로딩 스켈레톤 (마이페이지용) — 가로 스크롤로 변경하여 오버플로우 방지
 class _RecordSkeleton extends StatelessWidget {
   const _RecordSkeleton();
 
@@ -221,16 +255,16 @@ class _RecordSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       height: 123.44,
-      child: Row(
-        children: List.generate(
-          4,
-          (_) => Container(
-            width: 79,
-            margin: const EdgeInsets.only(right: 16),
-            decoration: BoxDecoration(
-              color: AppColors.unchecked,
-              borderRadius: BorderRadius.circular(8),
-            ),
+      child: ListView.separated(
+        padding: EdgeInsets.zero,
+        scrollDirection: Axis.horizontal,
+        itemCount: 4,
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        itemBuilder: (_, __) => Container(
+          width: 79,
+          decoration: BoxDecoration(
+            color: AppColors.unchecked,
+            borderRadius: BorderRadius.circular(8),
           ),
         ),
       ),
