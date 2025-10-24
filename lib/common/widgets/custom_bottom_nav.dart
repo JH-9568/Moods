@@ -38,6 +38,9 @@ class CustomBottomNav extends StatelessWidget {
       },
     ];
 
+    // 🔹 “공간 추천”과 “맵”을 비활성화 목록으로 지정
+    final disabledTabs = ['/explore', '/map'];
+
     final currentIndex = tabs.indexWhere(
       (tab) => location.startsWith(tab['path']!),
     );
@@ -67,14 +70,16 @@ class CustomBottomNav extends StatelessWidget {
               ? tabs[index]['selectedIcon']!
               : tabs[index]['icon']!;
           final textColor = isSelected ? AppColors.black : AppColors.black;
+          final targetPath = tabs[index]['path']!;
 
           return GestureDetector(
-            onTap: () {
-              context.go(tabs[index]['path']!);
-            },
+            onTap: disabledTabs.contains(targetPath)
+                ? null // 🚫 클릭 비활성화
+                : () => context.go(targetPath),
+            behavior: HitTestBehavior.translucent, // 터치 영역 유지
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center, // 추가
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 SvgPicture.asset(iconPath, width: 24, height: 24),
                 const SizedBox(height: 4),
