@@ -90,7 +90,7 @@ class _MyPageWidgetState extends ConsumerState<MyPageWidget> {
 
                   // ────────────────── 카페 + 타원 그림자 (기존 그대로) ──────────────────
                   Positioned(
-                    left: -48,
+                    left: -23,
                     top: 0,
                     child: Stack(
                       alignment: Alignment.topCenter,
@@ -135,7 +135,7 @@ class _MyPageWidgetState extends ConsumerState<MyPageWidget> {
                   // 디자인에 맞게 위치/크기는 살짝만 가늠치로 넣어두었어. 필요하면 수치만 조정!
                   Positioned(
                     left: 165, // ← 무스의 X 위치 (원하는 값으로 미세 조정)
-                    top: 70, // ← 무스의 Y 위치
+                    top: 58, // ← 무스의 Y 위치
                     child: Stack(
                       alignment: Alignment.topCenter,
                       children: [
@@ -144,8 +144,8 @@ class _MyPageWidgetState extends ConsumerState<MyPageWidget> {
                           opacity: 1,
                           child: Image.asset(
                             'assets/fonts/icons/skate_moods.png',
-                            width: 130,
-                            height: 130,
+                            width: 140,
+                            height: 140,
                             fit: BoxFit.contain,
                           ),
                         ),
@@ -173,7 +173,7 @@ class _MyPageWidgetState extends ConsumerState<MyPageWidget> {
               width: double.infinity,
               color: AppColors.background,
               child: Transform.translate(
-                offset: const Offset(0, _countLift - 44),
+                offset: const Offset(0, _countLift - 60),
                 child: Column(
                   children: const [
                     SpaceStudyCountWidget(),

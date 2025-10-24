@@ -4,11 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:moods/common/constants/colors.dart';
 import 'package:moods/common/constants/text_styles.dart';
+import 'package:moods/features/home/widget/prefer_keyword/prefer_keyword_widget.dart';
 import 'package:moods/features/home/widget/study_record/home_record_controller.dart';
 import 'package:moods/features/home/widget/study_record/home_record_empty.dart';
 import 'package:moods/features/home/widget/study_record/home_record_service.dart';
 
-/// “최근 방문 공간” 섹션 전체 위젯
+/// "최근 방문 공간" 섹션 전체 위젯
 class HomeRecordSection extends ConsumerWidget {
   const HomeRecordSection({super.key});
 
@@ -53,7 +54,7 @@ class HomeRecordSection extends ConsumerWidget {
 
           _RecordList(items: state.items.take(20).toList()),
           const SizedBox(height: 15),
-          Text('선호공간 키워드', style: AppTextStyles.bodyBold),
+          PreferKeywordSection(),
         ],
       ),
     );
@@ -91,7 +92,6 @@ class _RecordCard extends StatelessWidget {
     final hasImage =
         (item.spaceImageUrl != null && item.spaceImageUrl!.trim().isNotEmpty);
 
-    // 🔧 그림자 세기 조절 포인트
     final boxShadow = [
       BoxShadow(
         color: Colors.black.withOpacity(0.1),
@@ -105,19 +105,38 @@ class _RecordCard extends StatelessWidget {
       width: 79,
       height: 123.44,
       decoration: BoxDecoration(color: Colors.white, boxShadow: boxShadow),
+      clipBehavior: Clip.antiAlias,
       child: Stack(
         children: [
+          // 배경 이미지
           if (hasImage)
             Positioned.fill(
               child: Image.network(item.spaceImageUrl!, fit: BoxFit.cover),
             ),
+
+          // 🎨 흰색 그라데이션 오버레이 (위 0% → 아래 100%)
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.white.withOpacity(0.0), // 위는 투명
+                    Colors.white.withOpacity(1.0), // 아래는 흰색 (텍스트 읽기용)
+                  ],
+                  stops: const [0.0, 1.0],
+                ),
+              ),
+            ),
+          ),
+
+          // ✅ 하단 텍스트 (흰색 배경 제거됨)
           Positioned(
             left: 0,
             right: 0,
-            top: 87,
-            child: Container(
-              height: 40,
-              color: Colors.white,
+            bottom: 4,
+            child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -165,9 +184,8 @@ class _RecordSkeleton extends StatelessWidget {
       height: 123.44,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: EdgeInsets.zero, // 카드 내부 패딩과 겹치지 않게 0
-        physics:
-            const BouncingScrollPhysics(), // 원하면 NeverScrollableScrollPhysics로 비활성화
+        padding: EdgeInsets.zero,
+        physics: const BouncingScrollPhysics(),
         itemCount: 4,
         separatorBuilder: (_, __) => const SizedBox(width: 16),
         itemBuilder: (_, __) => Container(

@@ -131,12 +131,23 @@ class CalendarController extends StateNotifier<CalendarState> {
   CalendarController(this.ref, this._svc, {required DateTime initialMonth})
     : super(CalendarState(month: initialMonth));
 
+  /// ✅ 표시 규칙
+  /// - 1시간 이상  → "H시간 M분" (초 제외)
+  /// - 1분 이상   → "M분 S초"   (시간 제외)
+  /// - 1분 미만   → "S초"
   String formatHHMM(int seconds) {
     final total = seconds < 0 ? 0 : seconds;
     final h = total ~/ 3600;
     final m = (total % 3600) ~/ 60;
-    String two(int v) => v.toString().padLeft(2, '0');
-    return '${two(h)}시간 ${two(m)}분';
+    final s = total % 60;
+
+    if (h >= 1) {
+      return m > 0 ? '${h}시간 ${m}분' : '${h}시간';
+    } else if (m >= 1) {
+      return s > 0 ? '${m}분 ${s}초' : '${m}분';
+    } else {
+      return '${s}초';
+    }
   }
 
   Future<void> changeMonth(DateTime month) async {

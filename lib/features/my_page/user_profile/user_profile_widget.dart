@@ -27,14 +27,12 @@ class UserProfileWidget extends ConsumerWidget {
     final nickname = state.profile?.nickname.trim();
     final birthday = state.profile?.birthday?.trim(); // 보통 'YYYY-MM-DD'
     final email = state.profile?.email.trim();
-    final genderRaw = (state.profile?.gender ?? '')
-        .trim()
-        .toLowerCase(); // 'male'|'female' 등
+    final genderRaw = (state.profile?.gender ?? '').trim().toLowerCase();
 
-    // 표시용(한글)
-    final genderKo = genderRaw == 'male'
+    // 표시용(한글) ─ male/m → 남, female/f → 여
+    final genderKo = (genderRaw == 'male' || genderRaw == 'm')
         ? '남'
-        : genderRaw == 'female'
+        : (genderRaw == 'female' || genderRaw == 'f')
         ? '여'
         : (genderRaw.isEmpty ? '' : genderRaw);
 
@@ -108,17 +106,20 @@ class UserProfileWidget extends ConsumerWidget {
                     onTap:
                         onEdit ??
                         () {
-                          // 서버의 gender 값이 'male'|'female'인 경우 letter로 변환
-                          final genderLetter = genderRaw == 'male'
+                          // 서버 gender 값이 male/female/m/f 어떤 포맷이든 letter(m/f)로 변환
+                          final genderLetter =
+                              (genderRaw == 'male' || genderRaw == 'm')
                               ? 'm'
-                              : (genderRaw == 'female' ? 'f' : '');
+                              : (genderRaw == 'female' || genderRaw == 'f')
+                              ? 'f'
+                              : '';
 
                           context.push(
                             '/profile/edit',
                             extra: {
                               'nickname': nickname ?? '',
-                              'birthday': birthday ?? '', // 'YYYY-MM-DD' 기대
-                              'gender': genderLetter, // 'm'|'f' 또는 ''
+                              'birthday': birthday ?? '', // 'YYYY-MM-DD'
+                              'gender': genderLetter, // 'm' | 'f' | ''
                             },
                           );
                         },

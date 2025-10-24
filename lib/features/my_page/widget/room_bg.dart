@@ -60,7 +60,7 @@ class _RoomBgPainter extends CustomPainter {
     final leftWall = Path()
       ..moveTo(p(0, 0).dx, p(0, 0).dy)
       ..lineTo(p(144, 0).dx, p(144, 0).dy)
-      ..lineTo(p(144, 173).dx, p(144, 173).dy)
+      ..lineTo(p(144, 190).dx, p(144, 190).dy)
       ..lineTo(p(0, 216).dx, p(0, 216).dy)
       ..close();
     canvas.drawPath(leftWall, Paint()..color = leftTint);
@@ -69,16 +69,16 @@ class _RoomBgPainter extends CustomPainter {
     final rightWall = Path()
       ..moveTo(p(144, 0).dx, p(144, 0).dy)
       ..lineTo(p(393, 0).dx, p(393, 0).dy)
-      ..lineTo(p(393, 196).dx, p(393, 196).dy)
-      ..lineTo(p(144, 173).dx, p(144, 173).dy)
+      ..lineTo(p(393, 210).dx, p(393, 210).dy)
+      ..lineTo(p(144, 190).dx, p(144, 190).dy)
       ..close();
     canvas.drawPath(rightWall, Paint()..color = rightTint);
 
     // 3) 바닥 — 좌표: I(0,216) J(144,173) K(393,196) L(393,355) M(0,355)
     final floor = Path()
       ..moveTo(p(0, 216).dx, p(0, 216).dy)
-      ..lineTo(p(144, 173).dx, p(144, 173).dy)
-      ..lineTo(p(393, 196).dx, p(393, 196).dy)
+      ..lineTo(p(144, 190).dx, p(144, 190).dy)
+      ..lineTo(p(393, 210).dx, p(393, 210).dy)
       ..lineTo(p(393, 355).dx, p(393, 355).dy)
       ..lineTo(p(0, 355).dx, p(0, 355).dy)
       ..close();

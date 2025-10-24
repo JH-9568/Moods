@@ -24,6 +24,8 @@ import 'package:moods/features/my_page/user_profile/user_profile_service.dart';
 import 'package:moods/features/calendar/calendar_controller.dart';
 import 'package:moods/features/calendar/calendar_service.dart';
 import 'package:moods/features/calendar/dropdown/calendar_header.dart';
+import 'features/home/widget/prefer_keyword/prefer_keyword_service.dart';
+import 'features/home/widget/prefer_keyword/prefer_keyword_controller.dart';
 // ===================== Account (탈퇴) =====================
 import 'features/my_page/setting/account_delete/account_delete_service.dart';
 
@@ -215,3 +217,16 @@ final calendarControllerProvider =
 final selectedYearMonthProvider = StateProvider<YearMonth>(
   (ref) => YearMonth.now(),
 );
+
+// PreferKeywordService (AuthHttpClient 사용: 토큰 자동 부착)
+final preferKeywordServiceProvider = Provider<PreferKeywordService>((ref) {
+  final client = ref.read(authHttpClientProvider);
+  return PreferKeywordService(client: client);
+});
+
+// PreferKeywordController
+final preferKeywordControllerProvider =
+    StateNotifierProvider<PreferKeywordController, PreferKeywordState>((ref) {
+      final svc = ref.read(preferKeywordServiceProvider);
+      return PreferKeywordController(service: svc);
+    });
