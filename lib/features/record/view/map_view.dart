@@ -9,13 +9,14 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:moods/common/constants/api_constants.dart'; // baseUrl
 import 'package:moods/common/constants/colors_j.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// Places / Geocoding API Key (빌드시 --dart-define 권장)
-const MAPS_API_KEY = String.fromEnvironment(
-  'MAPS_API_KEY',
-  // TODO: 배포 전 교체/제한
-  defaultValue: 'AIzaSyCmyiqBywUn5lrt-6AXya4Xy38W4tJ9UQk',
-);
+final MAPS_API_KEY = dotenv.env['MAPS_API_KEY'] ??
+    const String.fromEnvironment(
+      'MAPS_API_KEY',
+      defaultValue: '',
+    );
 
 class SelectedPlace {
   final String name;     // 화면 표시용 이름
@@ -457,8 +458,8 @@ class _MapSelectPageState extends State<MapSelectPage> {
     final center = _center ?? _fallbackSeoul;
     final showingServer = _serverResults.isNotEmpty;
 
-    // AppBar 하단(검색/현위치)의 총 높이
-    const double appBarBottomH = 104; // ↓ 살짝 더 아래로
+    // AppBar 하단(검색/현위치)의 총 높이를 넉넉하게 확보
+    const double appBarBottomH = 104;
 
     return Scaffold(
       appBar: AppBar(
@@ -481,16 +482,17 @@ class _MapSelectPageState extends State<MapSelectPage> {
           ),
         ),
 
-        // ⬇️ 제목을 살짝 더 아래로 (이 값으로 미세조정)
+        // 제목을 살짝 더 아래로 내려 시안과 맞춘다
         title: const Padding(
-          padding: EdgeInsets.only(top: 6), // ← 2~8 사이에서 취향껏 조정 가능
+          padding: EdgeInsets.only(top: 6),
           child: Text('지도에서 선택', style: AppTextStyles.subtitle),
         ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(appBarBottomH),
           child: Container(
             color: Colors.white,
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 12), // ↑ 상단 패딩 +6
+            // 상단 패딩을 조금 더 주어 여유를 확보
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
             child: Column(
               children: [
                 // 검색창

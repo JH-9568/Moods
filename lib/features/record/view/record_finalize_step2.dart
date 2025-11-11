@@ -19,7 +19,7 @@ import 'package:moods/common/constants/colors_j.dart';
 import 'package:moods/common/constants/text_styles.dart';
 
 // ╔══════════════════════════════════════════════════════════════════════════╗
-// ║ 1) TOKENS & CONSTANTS                                                    ║
+// ║ 1) TOKENS & CONSTANTS ║
 // ╚══════════════════════════════════════════════════════════════════════════╝
 
 /// 레이아웃 상수
@@ -216,7 +216,7 @@ class _FinalizeStep2ScreenState extends ConsumerState<FinalizeStep2Screen> {
             : _titleCtrl.text.trim(),
         emotionTagIds: _selectedEmotions.toList(), // 서버가 라벨 받는 스펙
         spaceId: _selectedSpaceId!,
-        // ↓↓↓ 공간특징 필드 추가
+        // 공간 특성 관련 필드
         wifiScore: wifiScore,
         noiseLevel: noiseLevel,
         crowdness: crowdness,

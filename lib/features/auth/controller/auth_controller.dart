@@ -6,28 +6,25 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart'; // (기존 사용: 남겨둠, 더이상 저장엔 안씀)
 import 'package:moods/main.dart';
 import 'package:moods/features/auth/service/auth_service.dart';
-import 'package:moods/features/auth/service/token_storage.dart'; // ⬅️ 추가
+// 인증 토큰을 안전하게 저장하기 위한 래퍼
+import 'package:moods/features/auth/service/token_storage.dart';
 import 'package:moods/routes/app_router.dart' show routerPing;
 import 'package:moods/providers.dart';
 
-/// =====================
 /// Providers
-/// =====================
 final authControllerProvider =
     StateNotifierProvider<AuthController, AsyncValue<void>>((ref) {
   final svc = ref.read(authServiceProvider);
   return AuthController(ref, svc);
 });
 
-/// =====================
 /// Controller
-/// =====================
 class AuthController extends StateNotifier<AsyncValue<void>> {
   final Ref ref;
   final AuthService _authService;
 
-  // ⬇️ SecureStorage 래퍼
- late final TokenStorage _storage;
+  // SecureStorage 래퍼
+  late final TokenStorage _storage;
 
   StreamSubscription<AuthState>? _sub;
   Timer? _refreshTimer; // Supabase OAuth용
@@ -42,9 +39,7 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
     });
   }
 
-  // ===============================
   // JWT 만료 체크 (커스텀 토큰용)
-  // ===============================
   bool _isJwtExpired(String token, {int leewaySec = 30}) {
     try {
       final parts = token.split('.');
@@ -61,7 +56,7 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
     }
   }
 
-  // ---- 앱 시작 시 저장된 세션/토큰 동기화
+  // 앱 시작 시 저장된 세션/토큰 동기화
   Future<void> _syncCurrentSessionOnAppStart() async {
     // 1) Supabase 세션(카카오 OAuth) 우선
     final supa = Supabase.instance.client.auth.currentSession;
@@ -85,7 +80,7 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
     }
   }
 
-  // ---- Supabase 인증 상태 리스너 (카카오 OAuth용)
+  // Supabase 인증 상태 리스너 (카카오 OAuth용)
   void _initAuthListener() {
     _sub?.cancel();
     _sub = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
@@ -122,7 +117,7 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
     });
   }
 
-  // ---- Supabase 전용: 만료 45초 전에 refreshSession()
+  // Supabase 전용: 만료 45초 전에 refreshSession()
   void _scheduleRefreshFrom(Session? s) {
     _cancelRefreshTimer();
     if (s == null) return;
@@ -156,9 +151,7 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
     super.dispose();
   }
 
-  // -------------------------------
   // 이메일/비번 로그인 (우리 백엔드)
-  // -------------------------------
   Future<void> login(String email, String password) async {
   if (state.isLoading) return;
   state = const AsyncValue.loading();
@@ -214,9 +207,7 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
   }
 }
 
-  // -------------------------------
   // 카카오 로그인 (Supabase OAuth)
-  // -------------------------------
   Future<void> loginWithKakao() async {
     if (state.isLoading) return;
     state = const AsyncValue.loading();
@@ -229,9 +220,7 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
     }
   }
 
-  // -------------------------------
   // 로그아웃
-  // -------------------------------
   Future<void> logout() async {
     state = const AsyncValue.loading();
     try {
@@ -250,9 +239,7 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
     }
   }
        
-  // -------------------------------
   // 비밀번호 재설정
-  // -------------------------------
   Future<bool> resetPassword({
     required String email,
     required String newPassword,
@@ -274,9 +261,7 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
     }
   }
 
-  // -------------------------------
   // 회원가입/인증 흐름 (변경 없음)
-  // -------------------------------
   Future<String?> requestInitialVerification({
     required String email,
     required String password,
@@ -363,9 +348,7 @@ class AuthController extends StateNotifier<AsyncValue<void>> {
     }
   }
 
-  // -------------------------------
   // 온보딩 완료
-  // -------------------------------
   Future<bool> completeOnboarding({
     required String nickname,
     required String genderLetter,

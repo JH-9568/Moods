@@ -5,17 +5,20 @@ import 'package:moods/common/constants/colors.dart';
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   const CustomAppBar({super.key});
 
-  static const double _totalHeight = 98.0; // ✅ 상태바 포함 총 높이 고정
+  // 상태바를 포함한 총 높이를 고정해 디자인 일관성을 유지
+  static const double _totalHeight = 98.0;
 
   @override
   Widget build(BuildContext context) {
     final double statusBarHeight = MediaQuery.of(context).padding.top;
 
     return Container(
-      height: _totalHeight, // ⬅️ 전체(상태바 포함) 높이
+      // 전체 영역(상태바 포함) 높이
+      height: _totalHeight,
       color: AppColors.sub,
       padding: EdgeInsets.only(
-        top: statusBarHeight, // ✅ 상태바만큼 내려서 텍스트가 겹치지 않게
+        // 상태바만큼 내려서 텍스트가 겹치지 않게 조정
+        top: statusBarHeight,
         left: 20.0,
         right: 20.0,
         bottom: 12.0,

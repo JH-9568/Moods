@@ -1,4 +1,4 @@
-//providers.dart
+// providers.dart
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,7 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
-// ↓↓↓ 2번 적용: 모바일/데스크탑에서 keep-alive + gzip/deflate를 잘 쓰도록 IOClient 사용
+// 모바일/데스크톱에서 keep-alive와 압축을 활용하기 위해 IOClient 사용
 import 'dart:io' show HttpClient;
 import 'package:http/io_client.dart';
 
@@ -26,10 +26,10 @@ import 'package:moods/features/calendar/calendar_service.dart';
 import 'package:moods/features/calendar/dropdown/calendar_header.dart';
 import 'features/home/widget/prefer_keyword/prefer_keyword_service.dart';
 import 'features/home/widget/prefer_keyword/prefer_keyword_controller.dart';
-// ===================== Account (탈퇴) =====================
+// Account (탈퇴)
 import 'features/my_page/setting/account_delete/account_delete_service.dart';
 
-// ============ 공통: JWT 만료 체크 ============
+// 공통: JWT 만료 체크
 bool _isJwtExpired(String token, {int leewaySec = 30}) {
   try {
     final parts = token.split('.');
@@ -49,9 +49,7 @@ bool _isJwtExpired(String token, {int leewaySec = 30}) {
 String? _pickValid(String? t) =>
     (t != null && t.isNotEmpty && !_isJwtExpired(t)) ? t : null;
 
-// -----------------------------
 // Auth 기본 프로바이더
-// -----------------------------
 
 /// Supabase 클라이언트
 final supabaseClientProvider = Provider<SupabaseClient>(
@@ -77,9 +75,7 @@ final authUserProvider = StateProvider<Map<String, dynamic>?>((ref) => null);
 final authErrorProvider = StateProvider<String?>((ref) => null);
 final authLastEventProvider = StateProvider<AuthChangeEvent?>((ref) => null);
 
-// -----------------------------
 // SecureStorage / TokenStorage
-// -----------------------------
 
 // SecureStorage
 final flutterSecureStorageProvider = Provider(
@@ -91,7 +87,7 @@ final tokenStorageProvider = Provider<TokenStorage>((ref) {
   return TokenStorage(storage: fs);
 });
 
-// ========== 2번 적용 포인트 ==========
+// 2번 적용 포인트
 // 기본 http.Client 대신 IOClient를 써서
 // - keep-alive(연결 재사용)
 // - maxConnectionsPerHost(동시 연결 수 상승)
@@ -199,7 +195,7 @@ final accountServiceProvider = Provider<AccountService>((ref) {
 
 // Calendar Service Provider
 final calendarServiceProvider = Provider<CalendarService>((ref) {
-  // ✅ 토큰 자동 부착되는 AuthHttpClient 사용
+  // 토큰 자동 부착되는 AuthHttpClient 사용
   final client = ref.read(authHttpClientProvider);
   return CalendarService(client: client); // getJwt 안 넘겨도 됨
 });

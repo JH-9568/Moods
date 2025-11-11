@@ -12,7 +12,7 @@ class RecentSpace {
   final String? lastVisitDateText;
   final String? lastVisitTimeText;
 
-  /// ✅ 항상 '초'만 저장
+  /// 항상 '초'만 저장
   final int? durationSeconds;
 
   const RecentSpace({
@@ -50,7 +50,7 @@ class RecentSpace {
     return null;
   }
 
-  /// ✅ 어떤 입력이 와도 '초'로 통일
+  /// 어떤 입력이 와도 '초'로 통일
   static int? _toSeconds(dynamic raw) {
     if (raw == null) return null;
 
@@ -158,7 +158,7 @@ class HomeRecordService {
 
     final res = await _client.get(uri, headers: _headers);
 
-    // ✅ 상태 코드와 길이를 무조건 찍기
+    // 상태 코드와 길이를 무조건 찍기
     print(
       '[HomeRecordService] ◀️ 응답 status=${res.statusCode} length=${res.body.length}',
     );

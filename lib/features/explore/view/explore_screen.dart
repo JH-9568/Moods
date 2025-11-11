@@ -14,7 +14,8 @@ class ExploreScreen extends ConsumerWidget {
       body: const SafeArea(
         child: Padding(
           padding: EdgeInsets.symmetric(horizontal: 16),
-          child: CalendarWidget(), // ← 캘린더(UI+헤더 포함)
+          // CalendarWidget에는 헤더와 본문이 모두 포함되어 있다
+          child: CalendarWidget(),
         ),
       ),
     );

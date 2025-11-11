@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'package:moods/routes/app_router.dart';
 import 'common/theme/app_theme.dart';
@@ -15,20 +16,38 @@ import 'package:moods/features/auth/controller/auth_controller.dart';
 final routerPingProvider = Provider((ref) => routerPing);
 
 Future<void> _initServices() async {
+  final supabaseUrl = dotenv.env['SUPABASE_URL'] ??
+      const String.fromEnvironment('SUPABASE_URL', defaultValue: '');
+  final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'] ??
+      const String.fromEnvironment('SUPABASE_ANON_KEY', defaultValue: '');
+
+  if (supabaseUrl.isEmpty || supabaseAnonKey.isEmpty) {
+    throw StateError(
+      'Supabase credentials are missing. Set SUPABASE_URL and SUPABASE_ANON_KEY in .env or via --dart-define.',
+    );
+  }
+
   await Supabase.initialize(
-    url: 'https://wrokgtvjuwlmrdqdcytc.supabase.co',
-    anonKey:
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indyb2tndHZqdXdsbXJkcWRjeXRjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIyNDMyNjksImV4cCI6MjA2NzgxOTI2OX0.Rdbu0Q9sdv4yAo2k37CRdTVi-raAizqCRcQ8FcKhTBs', // 그대로
+    url: supabaseUrl,
+    anonKey: supabaseAnonKey,
     authOptions: const FlutterAuthClientOptions(
       authFlowType: AuthFlowType.pkce,
       autoRefreshToken: true,
     ),
   );
 
-  KakaoSdk.init(nativeAppKey: '204b12b00149d9af0bd8814298314747');
+  final kakaoKey = dotenv.env['KAKAO_NATIVE_APP_KEY'] ??
+      const String.fromEnvironment('KAKAO_NATIVE_APP_KEY', defaultValue: '');
+  if (kakaoKey.isNotEmpty) {
+    KakaoSdk.init(nativeAppKey: kakaoKey);
+  } else {
+    debugPrint(
+      '⚠️ Kakao native app key missing; Kakao login will be disabled.',
+    );
+  }
 }
 
-// === 로컬 유틸: JWT 만료 체크 (leeway 30s) ===
+// 로컬 유틸: JWT 만료 체크 (leeway 30s)
 bool _isJwtExpired(String token, {int leewaySec = 30}) {
   try {
     final parts = token.split('.');
@@ -47,8 +66,13 @@ bool _isJwtExpired(String token, {int leewaySec = 30}) {
   }
 }
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await dotenv.load(fileName: '.env');
+  } catch (e) {
+    debugPrint('ℹ️ .env not found: $e');
+  }
   runApp(const ProviderScope(child: _Bootstrap()));
 }
 
@@ -64,7 +88,7 @@ class _Bootstrap extends StatelessWidget {
           return _loading();
         }
 
-        //  Supabase 초기화 완료 후 SharedPreferences 로드
+        // Supabase 초기화 완료 후 SharedPreferences 로드
         return FutureBuilder<SharedPreferences>(
           future: SharedPreferences.getInstance(),
           builder: (context, prefsSnap) {
@@ -156,7 +180,8 @@ void initState() {
       container.read(authTokenProvider.notifier).state = t;
       await prefs.setString('access_token', t);
       print('🔄 AuthSyncer: signedIn → token set ${t.substring(0, 12)}•••');
-      container.invalidate(userProfileControllerProvider); // ✅ 새 로그인 시 프로필 정보 무효화
+      // 새 로그인 시 프로필 정보를 다시 불러오도록 무효화
+      container.invalidate(userProfileControllerProvider);
       routerPing.ping(); // 로그인 반영
       return;
     }
@@ -164,7 +189,8 @@ void initState() {
     // 3) Supabase 로그아웃만 클리어
     if (event == AuthChangeEvent.signedOut) {
       container.read(authTokenProvider.notifier).state = null;
-      container.invalidate(userProfileControllerProvider); // ✅ 로그아웃 시 프로필 정보 무효화
+      // 로그아웃 시 캐시된 프로필도 초기화
+      container.invalidate(userProfileControllerProvider);
       await prefs.remove('access_token');
       print('🔄 AuthSyncer: signedOut → token cleared');
       routerPing.ping();

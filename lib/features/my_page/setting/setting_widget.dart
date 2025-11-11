@@ -54,13 +54,14 @@ class SettingSection extends ConsumerWidget {
         color: AppColors.background,
         borderRadius: BorderRadius.circular(8),
       ),
-      // ⬅︎ 가로패딩 제거, 세로패딩만
+      // ︎ 가로패딩 제거, 세로패딩만
       padding: const EdgeInsets.symmetric(vertical: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _line(), // ⬅︎ 전폭 라인
-          // ⬇︎ 나머지는 개별적으로 좌우 16 패딩
+          // 전폭 라인
+          _line(),
+          // 나머지는 개별적으로 좌우 16 패딩
           const SizedBox(height: 10),
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16),
@@ -75,7 +76,8 @@ class SettingSection extends ConsumerWidget {
                 style: AppTextStyles.small.copyWith(color: Colors.black),
               ),
               onTap: () {
-                showLogoutConfirmDialog(context, ref); // ← ref 함께 전달, 결과 안 기다림
+                // ref를 함께 전달하고 결과를 기다리지 않는다
+                showLogoutConfirmDialog(context, ref);
               },
             ),
           ),

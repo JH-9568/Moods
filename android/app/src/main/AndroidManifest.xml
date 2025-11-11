@@ -35,7 +35,7 @@
     </activity>
 
     <meta-data android:name="com.google.android.geo.API_KEY"
-              android:value="AIzaSyBElYG8gflJPX4Gspaqo0yGNd76c0dNcHk"/>
+              android:value="${MAPS_API_KEY}"/>
 
     <meta-data
         android:name="flutterEmbedding"
@@ -52,7 +52,7 @@
     <package android:name="com.kakao.talk" />
     <intent>
       <action android:name="android.intent.action.VIEW" />
-      <data android:scheme="kakao204b12b00149d9af0bd8814298314747" />
+      <data android:scheme="${KAKAO_SCHEME}" />
     </intent>
   </queries>
 </manifest>

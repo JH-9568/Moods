@@ -34,8 +34,8 @@ class StudyTimeService {
 
   /// GET /stats/my-summary/monthly
   /// {
-  ///   "success": true, "year": 2025, "month": 9,
-  ///   "data": { "month":"2025-09", "sessions":38, "time_display":"00:54:57" }
+  /// "success": true, "year": 2025, "month": 9,
+  /// "data": { "month":"2025-09", "sessions":38, "time_display":"00:54:57" }
   /// }
   Future<Duration> fetchThisMonthDuration() async {
     final res = await _client.get(

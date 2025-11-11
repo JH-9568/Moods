@@ -9,9 +9,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:moods/providers.dart'; // recordServiceProvider, authTokenProvider
 
-// =====================
 // 안전 파서 & 상태 매핑 유틸
-// =====================
 int? _asInt(dynamic v) {
   if (v == null) return null;
   if (v is num) return v.toInt();
@@ -79,7 +77,7 @@ Map<String, dynamic> _rootDataOrSelf(Map<String, dynamic> resp) {
   return resp;
 }
 
-// ==== session status mapping ====
+// session status mapping
 enum _SessionStatus { running, paused, completed, unknown }
 
 _SessionStatus _mapStatus(dynamic raw) {
@@ -92,9 +90,7 @@ _SessionStatus _mapStatus(dynamic raw) {
   return _SessionStatus.unknown;
 }
 
-// =====================
 // JWT 만료 체크 유틸(참고용)
-// =====================
 String? _jwtPayloadBase64(String token) {
   final parts = token.split('.');
   if (parts.length != 3) return null;
@@ -119,9 +115,7 @@ bool _isJwtExpired(String token) {
   }
 }
 
-// ---------------------
 // 오류 문구 패턴
-// ---------------------
 bool _isAlreadyPausedErr(Object e) {
   final s = e.toString().toLowerCase();
   return (s.contains('이미') && (s.contains('일시') || s.contains('pause'))) ||
@@ -134,9 +128,7 @@ bool _isAlreadyRunningErr(Object e) {
       (s.contains('already') && (s.contains('running') || s.contains('resum')));
 }
 
-// =====================
 // StartArgs / GoalItem
-// =====================
 class StartArgs {
   final String title;
   final List<String> goals;
@@ -170,9 +162,7 @@ class GoalItem {
       GoalItem(text ?? this.text, done ?? this.done);
 }
 
-// =====================
 // State
-// =====================
 class RecordState {
   // 타이머
   final bool isRunning;
@@ -259,9 +249,7 @@ class RecordState {
   }
 }
 
-// =====================
 // Provider
-// =====================
 final recordControllerProvider =
     StateNotifierProvider<RecordController, RecordState>((ref) {
       final svc = ref.watch(recordServiceProvider);
@@ -269,9 +257,7 @@ final recordControllerProvider =
       return RecordController(ref, svc);
     });
 
-// =====================
 // Controller
-// =====================
 class RecordController extends StateNotifier<RecordState> {
   final Ref ref;
   final dynamic _svc; // RecordService
@@ -308,14 +294,14 @@ class RecordController extends StateNotifier<RecordState> {
       goals: goals,
       selectedMoods: moods,
       activeRecordId: recId,
-      // ✅ “활성 세션”은 run/pause에만 true. completed는 false로 둔다.
+      // “활성 세션”은 run/pause에만 true. completed는 false로 둔다.
       hasActiveSession: false,
       isRunning: false,
       isPaused: false,
     );
   }
 
-  // ✅ 토큰 보장: provider → Supabase 세션 → SharedPreferences 순으로 복구
+  // 토큰 보장: provider → Supabase 세션 → SharedPreferences 순으로 복구
   Future<bool> _ensureToken() async {
     var tok = ref.read(authTokenProvider) ?? '';
     if (tok.isNotEmpty) return true;
@@ -352,7 +338,7 @@ class RecordController extends StateNotifier<RecordState> {
     });
   }
 
-  // ---------- 공용: 세션 파싱 + 상태 반영 ----------
+  // 공용: 세션 파싱 + 상태 반영
   void _applyRecoveredSession(
     Map<String, dynamic> existing, {
     required StartArgs args,
@@ -454,7 +440,7 @@ Future<void> startWithArgs(StartArgs args, {BuildContext? context}) async {
       return;
     }
 
-    // ---------- 1) 선조회 ----------
+    // 1) 선조회
     Map<String, dynamic> existing = {};
     try {
       final found = await _svc.fetchUserSession();
@@ -478,7 +464,7 @@ Future<void> startWithArgs(StartArgs args, {BuildContext? context}) async {
       }
     }
 
-    // ---------- 2) 새 세션 시작 ----------
+    // 2) 새 세션 시작
     DateTime startedAt = DateTime.now().toUtc();
     List<GoalItem> goals = args.goals.map((e) => GoalItem(e, false)).toList();
 
@@ -520,7 +506,7 @@ Future<void> startWithArgs(StartArgs args, {BuildContext? context}) async {
         return;
       }
 
-      // ---------- 3) “이미 있음”이면 재조회 한 번으로 분기 ----------
+      // 3) “이미 있음”이면 재조회 한 번으로 분기
         try {
           Map<String, dynamic> again = {};
 
@@ -562,7 +548,7 @@ Future<void> startWithArgs(StartArgs args, {BuildContext? context}) async {
         }
     }
 
-    // ---------- 4) 새 세션 시작 성공 상태 반영 ----------
+    // 4) 새 세션 시작 성공 상태 반영
     final initMoods = args.moodId.isEmpty ? <String>[] : <String>[args.moodId];
     state = state.copyWith(
       startedAtUtc: startedAt,
@@ -631,9 +617,7 @@ Future<void> startWithArgs(StartArgs args, {BuildContext? context}) async {
     }
   }
 
-  // =====================
   // 일시정지 / 재개
-  // =====================
   Future<void> pause({BuildContext? context}) async {
     if (state.isPaused) return;
     if (!state.isRunning) return;
@@ -697,9 +681,7 @@ Future<void> startWithArgs(StartArgs args, {BuildContext? context}) async {
     }
   }
 
-  // =====================
   // 종료 / 내보내기
-  // =====================
   Future<Map<String, dynamic>> finish({BuildContext? context}) async {
     if (!await _ensureToken()) {
       if (context != null) _showError(context, '로그인이 만료되었습니다. 다시 로그인해 주세요.');
@@ -753,9 +735,7 @@ Future<void> startWithArgs(StartArgs args, {BuildContext? context}) async {
     );
   }
 
-  // =====================
   // 목표
-  // =====================
   Future<void> addGoal(
     String text, {
     bool done = false,
@@ -857,9 +837,7 @@ Future<void> startWithArgs(StartArgs args, {BuildContext? context}) async {
     // 필요 시 구현
   }
 
-  // =====================
   // 무드 & 배경
-  // =====================
 
   // 중복/공백 제거(순서 유지)
   List<String> _normalizeMoods(List<String> input) {
@@ -879,9 +857,10 @@ Future<void> startWithArgs(StartArgs args, {BuildContext? context}) async {
       if (!await _ensureToken()) return;
       final moods = _normalizeMoods(state.selectedMoods);
       try {
+        // RecordService에 정의된 API를 호출해 서버 상태를 동기화
         final resp = await _svc.updateSessionMood(
           moods,
-        ); // ← RecordService에 추가됨
+        );
         final serverMoods = (resp['mood_id'] is List)
             ? (resp['mood_id'] as List).map((e) => e.toString()).toList()
             : moods;
@@ -925,7 +904,8 @@ Future<void> startWithArgs(StartArgs args, {BuildContext? context}) async {
   @override
   void dispose() {
     _ticker?.cancel();
-    _moodDebounce?.cancel(); // ← 추가: 디바운서 정리
+    // 디바운서도 함께 정리
+    _moodDebounce?.cancel();
     super.dispose();
   }
 }

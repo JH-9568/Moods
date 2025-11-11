@@ -60,9 +60,7 @@ class ToggleSvg extends StatelessWidget {
   }
 }
 
-/// ---------------
 /// 목표 한 줄 (Step1과 동일 스타일)
-/// ---------------
 class GoalPillRow extends StatelessWidget {
   final String text;
   final bool done;
@@ -81,20 +79,20 @@ class GoalPillRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool isPlaceholder = text.trim().isEmpty;
 
-    // ✅ 스타일 잠금은 "진짜 disabled"일 때만. placeholder는 기본 스타일 유지
+    // 스타일 잠금은 "진짜 disabled"일 때만. placeholder는 기본 스타일 유지
     final bool lockStyle = disabled && !isPlaceholder;
 
-    // ✅ 배경 통일: 완료만 채움, 나머진 흰색
+    // 배경 통일: 완료만 채움, 나머진 흰색
     final Color pillBg = done ? AppColorsJ.main3 : Colors.white;
 
-    // ✅ 테두리 통일: 완료=없음 / 진짜 disabled=Main2 굵게 / 그 외(placeholder 포함)=연회색
+    // 테두리 통일: 완료=없음 / 진짜 disabled=Main2 굵게 / 그 외(placeholder 포함)=연회색
     final BorderSide side = done
         ? const BorderSide(color: Colors.transparent, width: 0)
         : (lockStyle
             ? const BorderSide(color: AppColorsJ.main2, width: 2)
             : const BorderSide(color: AppColorsJ.gray3Normal, width: 1));
 
-    // ✅ 텍스트 크기/두께 통일 + placeholder는 연회색
+    // 텍스트 크기/두께 통일 + placeholder는 연회색
     final Color txtColor =
         done ? Colors.white : (isPlaceholder ? AppColorsJ.gray5 : AppColorsJ.black);
 
@@ -142,9 +140,7 @@ class GoalPillRow extends StatelessWidget {
 }
 
 
-/// ---------------
 /// 공간 무드 칩 (연한 회색 테두리 + 선택 시 보라 채움)
-/// ---------------
 class _MoodChip extends StatelessWidget {
   final String label;
   final bool selected;
@@ -188,9 +184,7 @@ class _MoodChip extends StatelessWidget {
   }
 }
 
-/// ---------------
 /// 공간 무드 고정 레이아웃(3 / 3 / 2) – Step1과 동일 배치
-/// ---------------
 class MoodChipsFixedGrid extends StatelessWidget {
   /// 각 행에 들어갈 라벨들. 기본값은 3/3/2 배치.
   final List<List<String>> rows;

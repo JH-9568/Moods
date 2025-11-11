@@ -53,7 +53,7 @@ class MyMoodsSection extends StatelessWidget {
                   title: '${now.month}월 ${now.day}일 공부',
                   goals: const [],
 
-                  // ❗️여기가 포인트: mood → moodId 로 변경
+                  // 여기가 포인트: mood → moodId 로 변경
                   moodId: '조용한', // 기본값(필요시 교체)
                   emotionTagIds: const [], // 예: ['보통','피곤']
                   // 공간/환경 값 필요 시 채워넣기

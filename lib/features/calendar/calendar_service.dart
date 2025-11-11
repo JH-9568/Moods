@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart' show compute;
 import 'package:http/http.dart' as http;
 import 'package:moods/common/constants/api_constants.dart';
 
-// ====== Isolate parser (변경 없음/간결 주석) ======
+// Isolate parser (변경 없음/간결 주석)
 List<Map<String, dynamic>> parseCalendarMonthIsolate(
   Map<String, dynamic> args,
 ) {
@@ -102,7 +102,7 @@ class CalendarService {
 
   CalendarService({required this.client});
 
-  // === 간단한 월별 메모리 캐시 ===
+  // 간단한 월별 메모리 캐시
   // key = 'YYYY-MM'
   final Map<String, List<Map<String, dynamic>>> _monthCache = {};
   // (선택) 캐시 사이즈 제한

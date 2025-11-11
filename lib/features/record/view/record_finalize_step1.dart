@@ -1,7 +1,5 @@
 // lib/features/record/view/record_finalize_step1.dart
-// ============================================================================
 // Step 1 — 요약 / 목표 / 공간 무드 (정리 버전: 기능·디자인·이름 100% 동일)
-// ============================================================================
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,34 +11,26 @@ import 'package:moods/features/record/controller/record_controller.dart';
 import 'package:moods/features/record/widget/widget.dart';
 import 'record_finalize_step2.dart' show FinalizeStep2Screen;
 
-// ============================================================================
 // 1) Layout Tokens
-// ============================================================================
 const double kHeaderIconSize   = 30;   // 체크 아이콘 박스 크기
 const double kHeaderIconStroke = 4.0;  // 체크 선 굵기 (두껍게!)
 const double kHeaderGap        = 8;    // 체크와 '오늘 공부' 텍스트 간격
 const double kTitleToCardGap   = 24;   // 제목 아래 카드까지 간격
 const double kBodyTopPadding   = 28;   // 앱바와 헤더 사이(조금 더 아래로)
 
-// ============================================================================
-// 3) (Optional) 라벨/태그 상수  *원본 그대로 유지*
-// ============================================================================
+// 3) (Optional) 라벨/태그 상수 *원본 그대로 유지*
 const MOOD_TAGS = <String>[
   '트렌디한','감성적인','개방적인','자연친화적인','컨셉있는','활기찬','아늑한','조용한',
 ];
 
-// ============================================================================
 // 4) Helpers (원본 로직 그대로)
-// ============================================================================
 String ymd(DateTime d) =>
     '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 String two(int v) => v.toString().padLeft(2, '0');
 String fmtDur(Duration d) =>
     '${two(d.inHours)}:${two(d.inMinutes % 60)}:${two(d.inSeconds % 60)}';
 
-// ============================================================================
-// 5) Entry (풀스크린 네비 시작점)  *원본 그대로*
-// ============================================================================
+// 5) Entry (풀스크린 네비 시작점) *원본 그대로*
 Future<void> showRecordFinalizeFlow(BuildContext context) async {
   await Navigator.of(context).push(
     MaterialPageRoute(
@@ -50,9 +40,7 @@ Future<void> showRecordFinalizeFlow(BuildContext context) async {
   );
 }
 
-// ============================================================================
 // 6) Screen
-// ============================================================================
 class FinalizeStep1Screen extends ConsumerWidget {
   const FinalizeStep1Screen({super.key});
 
@@ -205,9 +193,7 @@ class FinalizeStep1Screen extends ConsumerWidget {
   }
 }
 
-// ============================================================================
 // 7) Dialogs
-// ============================================================================
 Future<bool?> _showQuitConfirmDialog(BuildContext context) {
   return showDialog<bool>(
     context: context,
@@ -312,9 +298,7 @@ class _DialogBigButton extends StatelessWidget {
   }
 }
 
-// ============================================================================
 // 8) Header Check & Summary Row
-// ============================================================================
 class _HeaderBoldCheck extends StatelessWidget {
   const _HeaderBoldCheck();
 
@@ -360,7 +344,7 @@ class _BoldCheckPainter extends CustomPainter {
       oldDelegate.color != color || oldDelegate.stroke != stroke;
 }
 
-// --- 요약행 ---
+// 요약행
 enum _SummaryValueKey { date, netStudy, total }
 
 class _SummaryRowPlain extends ConsumerWidget {

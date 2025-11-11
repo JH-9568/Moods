@@ -110,7 +110,8 @@ class _MetricCell extends StatelessWidget {
             label,
             style: AppTextStyles.small.copyWith(
               fontWeight: FontWeight.w600,
-              color: Colors.black, // ✅ 색상 명시
+              // 테마 컬러와 관계없이 항상 동일한 색상을 사용
+              color: Colors.black,
             ),
           ),
 

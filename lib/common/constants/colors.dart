@@ -13,11 +13,11 @@ class AppColors {
   static const text_color3 = Color.fromRGBO(195, 188, 181, 1);
   static const room_color1 = Color.fromRGBO(132, 109, 96, 1);
   static const room_color2 = Color.fromRGBO(113, 90, 77, 1);
-  //  Default
+  // Default
   static const Color white = Color(0xFFFFFFFF);
   static const Color black = Color(0xFF000000);
 
-  //  Gray
+  // Gray
   static const Color gray1 = Color.fromARGB(
     255,
     247,
@@ -35,15 +35,15 @@ class AppColors {
   static const Color middlePoint = Color(0xFF9B9BDE); // middle-point
   static const Color dark = Color(0xFF4A4A8A); // dark
 
-  //  Point
+  // Point
   static const Color point = Color(0xFFF4DA74); // point
   static const Color pointLight = Color(0xFFF9E7A5); // point-light
 
-  //  State (CTA 등)
+  // State (CTA 등)
   static const Color buttonActive = Color(0xFFBDBDF5); // 활성화
   static const Color buttonInactive = Color(0xFFD9D9E0); // 비활성화
 
-  // --- Record Screens ---
+  // Record Screens
   static const Color recordBg = Color(0xFFF3F5FF);
   static const Color recordTimerBg = Color(0xFFF9FAFF);
   static const Color recordPrimaryDeep = Color(0xFF6E6BF0);

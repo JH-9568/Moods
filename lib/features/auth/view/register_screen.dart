@@ -104,7 +104,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     return '$id@$domain';
   }
 
-  // ====== UUID 기반 폴링 ======
+  // UUID 기반 폴링
   void _startVerificationTimer() {
     if (_signupUuid == null) return;
     _verificationTimer?.cancel();
@@ -132,7 +132,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     });
   }
 
-  // ====== 인증요청/재전송 (UUID 플로우 전용) ======
+  // 인증요청/재전송 (UUID 플로우 전용)
   Future<void> _handleEmailVerification() async {
   final email = _getFullEmail();
   final isEmailValid = RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
@@ -180,7 +180,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   }
 }
 
-  // ====== 최종 제출 ======
+  // 최종 제출
   // RegisterScreen._onSubmit() 교체
 Future<void> _onSubmit() async {
   if (!isVerified) {
@@ -197,7 +197,7 @@ Future<void> _onSubmit() async {
   // 생일 포맷: YYYY.MM.DD -> YYYY-MM-DD
   final birthHyphen = birthController.text.replaceAll('.', '-');
 
-  // 성별 포맷: '남성'|'여성' -> 'm'|'f' 
+  // 성별 포맷: '남성'|'여성' -> 'm'|'f'
   String genderLetter;
   switch (selectedGender) {
     case '남성': genderLetter = 'm'; break;
@@ -230,7 +230,7 @@ Future<void> _onSubmit() async {
   }
 }
 
-  // ====== UI Helpers ======
+  // UI Helpers
   Widget _buildTextField(
     TextEditingController controller,
     String hint, {

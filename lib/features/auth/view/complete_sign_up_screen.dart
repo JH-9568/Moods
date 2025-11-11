@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:moods/common/constants/colors_j.dart';
-import 'package:moods/common/constants/text_styles.dart'; // ← textSB 사용
+// textSB 스타일 사용을 위해 필요
+import 'package:moods/common/constants/text_styles.dart';
 
 class SignUpCompleteScreen extends StatelessWidget {
   const SignUpCompleteScreen({super.key});
@@ -17,7 +18,8 @@ class SignUpCompleteScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColorsJ.main4, // ← 배경 메인4
+      // 배경을 메인4 컬러로 고정
+      backgroundColor: AppColorsJ.main4,
       body: Stack(
         children: [
           // 하단 그라데이션 오버레이 (위 투명 → 아래 살짝 어두움)
@@ -45,7 +47,8 @@ class SignUpCompleteScreen extends StatelessWidget {
                 const Spacer(),
                 // 중앙 무스 아이콘
                 Image.asset(
-                  'assets/fonts/icons/moodsicon.png', // ✅ pubspec.yaml에 등록된 경로로 수정
+                  // pubspec.yaml에 등록된 정식 경로
+                  'assets/fonts/icons/moodsicon.png',
                   width: 260,
                   fit: BoxFit.contain,
                 ),
@@ -92,7 +95,8 @@ class SignUpCompleteScreen extends StatelessWidget {
                       ),
                       child: Text(
                         '확인',
-                        style: AppTextStyles.textSbEmphasis, // ← 요청한 스타일
+                        // 요청된 강조 스타일 적용
+                        style: AppTextStyles.textSbEmphasis,
                       ),
                     ),
                   ),

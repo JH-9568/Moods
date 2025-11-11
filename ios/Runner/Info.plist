@@ -9,7 +9,7 @@
 			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>kakao204b12b00149d9af0bd8814298314747</string>
+				<string>$(KAKAO_URL_SCHEME)</string>
 			</array>
 		</dict>
 		<dict>
@@ -22,7 +22,7 @@
 		</dict>
 	</array>
 	<key>KAKAO_APP_KEY</key>
-	<string>204b12b00149d9af0bd8814298314747</string>
+	<string>$(KAKAO_NATIVE_APP_KEY)</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
@@ -76,7 +76,7 @@
 	<true/>
 
 	<key>GMS_API_KEY</key>
-    <string>AIzaSyAlw5XkxY3Wsot5v2tsEv-0rC9QtuMYOX4</string>
+    <string>$(MAPS_API_KEY_IOS)</string>
 
 
 	<key>NSLocationWhenInUseUsageDescription</key>

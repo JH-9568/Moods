@@ -148,9 +148,7 @@ class FullscreenTimer extends ConsumerWidget {
   }
 }
 
-// =====================
 // 공용 위젯들 (이 파일 내에서만 사용)
-// =====================
 class _RoundCircleButton extends StatelessWidget {
   final IconData icon;
   final Color bg;

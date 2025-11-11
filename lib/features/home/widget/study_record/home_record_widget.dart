@@ -25,17 +25,17 @@ class HomeRecordSection extends ConsumerWidget {
       });
     }
 
-    // ✅ 기록이 없거나(빈 목록) 에러면: 컨테이너/헤더 없이 "빈 상태 카드"만 보여줌
+    // 기록이 없거나(빈 목록) 에러면: 컨테이너/헤더 없이 "빈 상태 카드"만 보여줌
     if (state.loadedOnce && (state.error != null || state.items.isEmpty)) {
       return const StudyRecordEmptyCard();
     }
 
-    // ⏳ 초기 로딩(아직 데이터 결정 전)에는 스켈레톤만 필요하면 이렇게 바로 반환해도 됨
+    // 초기 로딩(아직 데이터 결정 전)에는 스켈레톤만 필요하면 이렇게 바로 반환해도 됨
     if (state.loading && !state.loadedOnce) {
       return const _RecordSkeleton();
     }
 
-    // ✅ 정상 데이터가 있을 때만 기존 섹션 컨테이너 렌더링
+    // 정상 데이터가 있을 때만 기존 섹션 컨테이너 렌더링
     return Container(
       width: 361,
       height: 386,
@@ -131,7 +131,7 @@ class _RecordCard extends StatelessWidget {
             ),
           ),
 
-          // ✅ 하단 텍스트 (흰색 배경 제거됨)
+          // 하단 텍스트 (흰색 배경 제거됨)
           Positioned(
             left: 0,
             right: 0,

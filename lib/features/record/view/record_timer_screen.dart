@@ -1,9 +1,7 @@
 // lib/features/record/view/record_timer_screen.dart
-// ============================================================================
 // RecordTimerScreen — 리팩토링(정리 버전)
 // - 기능/디자인/문자열/스타일 변경 없음
 // - 섹션 구분 + 중복 라우팅 메서드 분리만 수행
-// ============================================================================
 
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -23,9 +21,7 @@ import 'package:moods/features/record/widget/widget.dart';
 import 'package:moods/common/constants/text_styles.dart';
 import 'package:moods/common/constants/colors_j.dart';
 
-// ============================================================================
 // 1) Constants
-// ============================================================================
 const double _kFont16 = 16;
 const double _kLH160 = 1.6;
 
@@ -41,9 +37,7 @@ const List<String> _moodTags = [
   '조용한',
 ];
 
-// ============================================================================
 // 2) Screen
-// ============================================================================
 class RecordTimerScreen extends ConsumerStatefulWidget {
   final StartArgs startArgs;
   const RecordTimerScreen({super.key, required this.startArgs});
@@ -53,7 +47,7 @@ class RecordTimerScreen extends ConsumerStatefulWidget {
 }
 
 class _RecordTimerScreenState extends ConsumerState<RecordTimerScreen> {
-  // ---- State fields ---------------------------------------------------------
+  // State fields
   late final DraggableScrollableController _dragCtrl;
   final List<TextEditingController> _draftCtrls = [
     TextEditingController(),
@@ -66,7 +60,7 @@ class _RecordTimerScreenState extends ConsumerState<RecordTimerScreen> {
   bool _started = false; // 한 번만 스타트
   bool _closing = false; // 닫기 중복 방지
 
-  // ---- Lifecycle ------------------------------------------------------------
+  // Lifecycle
   @override
   void initState() {
     super.initState();
@@ -117,7 +111,7 @@ class _RecordTimerScreenState extends ConsumerState<RecordTimerScreen> {
     super.dispose();
   }
 
-  // ---- Helpers (format/brightness/routing) ----------------------------------
+  // Helpers (format/brightness/routing)
   String _fmt(Duration d) {
     final h = d.inHours.toString().padLeft(2, '0');
     final m = (d.inMinutes % 60).toString().padLeft(2, '0');
@@ -162,7 +156,7 @@ class _RecordTimerScreenState extends ConsumerState<RecordTimerScreen> {
     );
   }
 
-  // ---- Close flow -----------------------------------------------------------
+  // Close flow
   Future<void> _onClose() async {
     if (_closing) return;
     _closing = true;
@@ -216,7 +210,7 @@ class _RecordTimerScreenState extends ConsumerState<RecordTimerScreen> {
     }
   }
 
-  // ---- Build ---------------------------------------------------------------
+  // Build
   @override
   Widget build(BuildContext context) {
     final st = ref.watch(recordControllerProvider);
@@ -253,7 +247,7 @@ class _RecordTimerScreenState extends ConsumerState<RecordTimerScreen> {
             top: false,
             child: Column(
               children: [
-                // ---- 타이머 카드 ------------------------------------------------
+                // 타이머 카드
                 GestureDetector(
                   onVerticalDragEnd: (_) => _openFullscreenTimer(),
                   onTap: _openFullscreenTimer,
@@ -317,7 +311,7 @@ class _RecordTimerScreenState extends ConsumerState<RecordTimerScreen> {
                   ),
                 ),
 
-                // ---- 본문 -------------------------------------------------------
+                // 본문
                 Expanded(
                   child: LayoutBuilder(
                     builder: (_, constraints) {
@@ -342,7 +336,7 @@ class _RecordTimerScreenState extends ConsumerState<RecordTimerScreen> {
                             padding:
                                 const EdgeInsets.fromLTRB(24, 20, 24, 120),
                             children: [
-                              // ---- 공간 무드 -----------------------------------
+                              // 공간 무드
                               const Text(
                                 '공간 무드',
                                 style: AppTextStyles.textSbEmphasis,
@@ -362,7 +356,7 @@ class _RecordTimerScreenState extends ConsumerState<RecordTimerScreen> {
 
                               const SizedBox(height: 24),
 
-                              // ---- 오늘 목표 -----------------------------------
+                              // 오늘 목표
                               const Text(
                                 '오늘 목표',
                                 style: AppTextStyles.textSbEmphasis,
@@ -437,7 +431,7 @@ class _RecordTimerScreenState extends ConsumerState<RecordTimerScreen> {
             ),
           ),
 
-          // ---- 하단 뒤로가기 ---------------------------------------------------
+          // 하단 뒤로가기
           Positioned(
             left: 0,
             bottom: 0,
@@ -453,9 +447,7 @@ class _RecordTimerScreenState extends ConsumerState<RecordTimerScreen> {
   }
 }
 
-// ============================================================================
 // 3) Subwidgets
-// ============================================================================
 
 class _GoalInputRow extends StatelessWidget {
   final TextEditingController controller;
@@ -480,7 +472,7 @@ class _GoalInputRow extends StatelessWidget {
               alignment: Alignment.centerLeft,
               padding: const EdgeInsets.symmetric(horizontal: 12),
 
-              // ✅ 테두리/라운드, 위 항목과 동일
+              // 테두리/라운드, 위 항목과 동일
               decoration: const ShapeDecoration(
                 color: Colors.white,
                 shape: RoundedRectangleBorder(
@@ -517,9 +509,7 @@ class _GoalInputRow extends StatelessWidget {
   }
 }
 
-/* =========================
-   시안형 커스텀 Confirm Dialog
-   ========================= */
+/// 시안형 커스텀 Confirm Dialog
 class _Confirm extends StatelessWidget {
   final String title;
   final String okText;
@@ -631,9 +621,7 @@ class _BigActionButton extends StatelessWidget {
   }
 }
 
-/* =========================
-   Alert (잠시만요! 공간 무드 선택)
-   ========================= */
+/// Alert (잠시만요! 공간 무드 선택)
 class _Alert extends StatelessWidget {
   final String title;
   final String message;
@@ -697,7 +685,7 @@ class _Alert extends StatelessWidget {
   }
 }
 
-// ---- 공용 원형 버튼 ----
+// 공용 원형 버튼
 class _RoundCircleButton extends StatelessWidget {
   final IconData icon;
   final Color bg;

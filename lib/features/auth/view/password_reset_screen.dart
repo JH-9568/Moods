@@ -68,7 +68,7 @@ class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
     );
   }
 
-  // ===== 공통 도메인 드롭다운 위젯 (회원가입과 동일) =====
+  // 공통 도메인 드롭다운 위젯 (회원가입과 동일)
   Widget _buildEmailDomainSelector() {
     final fullDomainList = ['직접입력', 'naver.com', 'gmail.com', 'daum.net', 'nate.com'];
     final filteredDomainList = fullDomainList.where((d) => d != selectedDomain).toList();
@@ -226,7 +226,8 @@ class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
         elevation: 0,
         centerTitle: true,
         title: const Text('비밀번호 재설정', style: TextStyle(fontSize: 20, color: AppColors.black)),
-        leading: const GlobalBackButton(), // ← 네가 만든 공통 뒤로 가기
+        // 공통 뒤로가기 버튼 사용
+        leading: const GlobalBackButton(),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
@@ -256,8 +257,8 @@ class _PasswordResetScreenState extends ConsumerState<PasswordResetScreen> {
                 Expanded(flex: 2, child: _buildEmailDomainSelector()),
               ],
             ),
-
-            const SizedBox(height: 20), // ← 버튼을 위쪽에 배치 (시안처럼)
+            // 버튼을 조금 더 위로 배치
+            const SizedBox(height: 20),
 
             SizedBox(
               width: double.infinity,

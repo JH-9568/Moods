@@ -5,6 +5,23 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val env: MutableMap<String, String> = mutableMapOf<String, String>().apply {
+    val envFile = rootProject.file(".env")
+    if (envFile.exists()) {
+        envFile.readLines().forEach { rawLine ->
+            val line = rawLine.trim()
+            if (line.isEmpty() || line.startsWith("#")) return@forEach
+            val idx = line.indexOf("=")
+            if (idx <= 0) return@forEach
+            val key = line.substring(0, idx).trim()
+            val value = line.substring(idx + 1).trim()
+            if (key.isNotEmpty()) {
+                this[key] = value
+            }
+        }
+    }
+}
+
 android {
     namespace = "com.moodsapp.moods"
     compileSdk = flutter.compileSdkVersion
@@ -28,6 +45,17 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        val mapsKey =
+            env["MAPS_API_KEY_ANDROID"] ?: env["MAPS_API_KEY"] ?: (project.findProperty("MAPS_API_KEY") as String?) ?: ""
+        val kakaoKey = env["KAKAO_NATIVE_APP_KEY"] ?: (project.findProperty("KAKAO_NATIVE_APP_KEY") as String?)
+
+        manifestPlaceholders.putAll(
+            mapOf(
+                "MAPS_API_KEY" to mapsKey,
+                "KAKAO_SCHEME" to (kakaoKey?.let { "kakao$it" } ?: "kakao"),
+            ),
+        )
     }
 
     buildTypes {

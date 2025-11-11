@@ -64,7 +64,7 @@ class MyPageStudyRecordWidget extends ConsumerWidget {
                 label: '캘린더 열기',
                 child: InkWell(
                   onTap: () {
-                    // ✅ 캘린더 데이터 미리 요청
+                    // 캘린더 데이터 미리 요청
                     final ctrl = ref.read(calendarControllerProvider.notifier);
                     // (옵션) 혹시 현재 월을 확실히 강제하고 싶으면 아래 라인도 함께:
                     ctrl.changeMonth(DateTime.now());
@@ -99,7 +99,8 @@ class MyPageStudyRecordWidget extends ConsumerWidget {
           // 서브 텍스트
           // 서브 텍스트
           Transform.translate(
-            offset: const Offset(0, -3), // ← 위로 3px 당김 (원하면 -2 ~ -4로 미세조정)
+            // 텍스트를 위로 조정해 시안과 맞춘다
+            offset: const Offset(0, -3),
             child: Text(
               '나의 공부 기록을 최신순으로 확인해보세요',
               style: AppTextStyles.small.copyWith(color: AppColors.text_color2),
@@ -185,7 +186,7 @@ class _RecordCard extends StatelessWidget {
             ),
           ),
 
-          // ✅ 하단 텍스트 (흰색 박스 제거: color 삭제, padding만 유지)
+          // 하단 텍스트 (흰색 박스 제거: color 삭제, padding만 유지)
           Positioned(
             left: 0,
             right: 0,

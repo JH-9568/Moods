@@ -137,7 +137,7 @@ GoRouter createAppRouter() {
       return null;
     },
     routes: [
-      // --- 인증/온보딩 라우트(기존 builder 유지) ---
+      // 인증/온보딩 라우트(기존 builder 유지)
       GoRoute(path: '/start', builder: (_, __) => const StartScreen()),
       GoRoute(path: '/register', builder: (_, __) => const RegisterScreen()),
       GoRoute(path: '/kakao', builder: (_, __) => const AdditionalInfoScreen()),
@@ -186,7 +186,7 @@ GoRouter createAppRouter() {
           );
         },
         onExit: (context, state) {
-          // ✅ 프로필 수정 후 '/profile'로 돌아갈 때 userProfileControllerProvider를 무효화
+          // 프로필 수정 후 '/profile'로 돌아갈 때 userProfileControllerProvider를 무효화
           // 이렇게 하면 MyPageWidget이 최신 프로필 정보를 다시 불러옵니다.
           final container = ProviderScope.containerOf(context);
           container.invalidate(userProfileControllerProvider);
@@ -195,7 +195,7 @@ GoRouter createAppRouter() {
         },
       ),
 
-      // --- 탭 구조: ShellRoute ---
+      // 탭 구조: ShellRoute
       ShellRoute(
         builder: (context, state, child) {
           final String path = state.uri.path; // 예: '/profile', '/home' ...
@@ -209,7 +209,7 @@ GoRouter createAppRouter() {
             bottomNavigationBar: const CustomBottomNav(),
           );
         },
-        // ✅ 탭 4개는 모두 NoTransitionPage로: 전환 애니메이션 제거
+        // 탭 4개는 모두 NoTransitionPage로: 전환 애니메이션 제거
         routes: [
           GoRoute(
             path: '/home',

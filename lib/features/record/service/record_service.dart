@@ -21,7 +21,7 @@ class RecordService {
     return q == null ? uri : uri.replace(queryParameters: q);
   }
 
-  // ===== Sessions =====
+  // Sessions
 
   Future<Map<String, dynamic>> startSession({
     required String moodId,
@@ -214,7 +214,7 @@ class RecordService {
     return null;
   }
 
-  // ===== Moods =====
+  // Moods
   Future<Map<String, dynamic>> updateSessionMood(List<String> moods) async {
     final cleaned = <String>[];
     for (final m in moods) {
@@ -235,7 +235,7 @@ class RecordService {
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
 
-  // ===== Goals =====
+  // Goals
   Future<Map<String, dynamic>> addGoal(String text, {bool done = false}) async {
     final res = await client.post(
       _u('/study-sessions/goals'),
@@ -283,7 +283,7 @@ class RecordService {
     return data;
   }
 
-  // ===== Wallpaper =====
+  // Wallpaper
   Future<String> fetchWallpaper(String moodQuery) async {
     final res = await client.get(
       _u('/photos/wallpaper', {'query': moodQuery}),

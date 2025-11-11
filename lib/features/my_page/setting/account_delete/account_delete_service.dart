@@ -23,7 +23,7 @@ class AccountService {
 
   Uri _u(String p) => Uri.parse('$baseUrl$p');
 
-  /// DELETE /user  (탈퇴)
+  /// DELETE /user (탈퇴)
   /// Postman: 200 {"message":"유저 삭제에 성공했습니다."}
   Future<String> deleteMe() async {
     final url = _u('/user');

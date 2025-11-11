@@ -93,7 +93,7 @@ class _MyPageWidgetState extends ConsumerState<MyPageWidget>
               height: _headerTotalHeight + statusBar,
               color: Colors.transparent,
               padding: EdgeInsets.only(top: statusBar),
-              // ⬇️ Stack 전체를 AnimatedBuilder로 감싸서 매 프레임 리빌드
+              // Stack 전체를 AnimatedBuilder로 감싸서 매 프레임 리빌드
               child: AnimatedBuilder(
                 animation: _mooseCtrl,
                 builder: (context, _) {
@@ -173,7 +173,8 @@ class _MyPageWidgetState extends ConsumerState<MyPageWidget>
 
                       // ────────────────── 스케이트 무스(애니메이션) ──────────────────
                       Positioned(
-                        left: x,               // ← 직계 자식으로 Positioned 배치 (에러 해결)
+                        // 직계 자식으로 배치해 Positioned 관련 에러 방지
+                        left: x,
                         top: topY + bounce,
                         child: Stack(
                           alignment: Alignment.topCenter,

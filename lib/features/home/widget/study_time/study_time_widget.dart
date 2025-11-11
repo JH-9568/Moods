@@ -2,7 +2,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-// import 'package:blur/blur.dart'; // ⛔️ 제거: Layer blur는 ImageFiltered로 구현
+// import 'package:blur/blur.dart'; // 제거: Layer blur는 ImageFiltered로 구현
 
 import 'package:moods/common/constants/colors.dart';
 import 'package:moods/common/constants/text_styles.dart';
@@ -41,9 +41,10 @@ class StudyTimeWidget extends ConsumerWidget {
         child: st.loading && !st.loadedOnce
             ? const CircularProgressIndicator()
             : Stack(
-                clipBehavior: Clip.none, // ✅ 넘치는 블러가 잘리지 않도록
+                // 넘치는 블러 효과가 잘리지 않도록 클리핑을 끈다
+                clipBehavior: Clip.none,
                 children: [
-                  // ✅ Figma: Layer blur 원 (X=121, Y=131, W=151, H=151)
+                  // Figma: Layer blur 원 (X=121, Y=131, W=151, H=151)
                   // Stack 안에서
                   Align(
                     alignment: Alignment.topCenter, // 가로축은 가운데 고정

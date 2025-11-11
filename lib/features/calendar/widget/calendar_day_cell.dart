@@ -71,7 +71,7 @@ class CalendarDayCell extends StatelessWidget {
       return null;
     }
 
-    // ✅ 하루의 모든 레코드 순회하며 첫 유효 URL 사용
+    // 하루의 모든 레코드 순회하며 첫 유효 URL 사용
     for (final rec in items) {
       final m = rec.raw;
       final url = pickFromMap(m);
@@ -200,21 +200,21 @@ class CalendarDayCell extends StatelessWidget {
                 ),
               ),
 
-            // ✅ 하단 텍스트 (그대로 유지)
+            // 하단 텍스트 영역
             Align(
               alignment: Alignment.bottomCenter,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start, // ✅ 왼쪽 정렬 추가
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       spaceName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 7, // ✅ 사용자 지정 크기
+                        fontSize: 7,
                         fontWeight: FontWeight.w700,
                         color: Colors.black,
                         height: 1.0,
@@ -226,7 +226,7 @@ class CalendarDayCell extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 9, // ✅ 사용자 지정 크기
+                        fontSize: 9,
                         fontWeight: FontWeight.w600,
                         color: Colors.black87,
                         height: 1.0,
@@ -243,7 +243,7 @@ class CalendarDayCell extends StatelessWidget {
       if (onTapRecord == null) return content;
       return InkWell(
         onTap: () => onTapRecord!(items.first.recordId),
-        // 👇 클릭 영역도 모서리 0으로
+        // 클릭 영역도 모서리를 둥글리지 않고 0으로 둔다
         borderRadius: BorderRadius.zero,
         child: content,
       );

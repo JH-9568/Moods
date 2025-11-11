@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:moods/common/constants/colors.dart';
 import 'package:moods/common/constants/text_styles.dart';
 
-// ✅ 총 공부횟수 컨트롤러(프로바이더) 임포트
+// 총 공부횟수 컨트롤러(프로바이더) 임포트
 import 'package:moods/features/home/widget/study_count/study_count_controller.dart';
 
 class StudyCountWidget extends ConsumerWidget {
@@ -23,7 +23,7 @@ class StudyCountWidget extends ConsumerWidget {
     // API로부터 받은 총 공부 횟수 (로딩 중엔 0으로 표시해도 디자인 무너짐 없음)
     final int studyCount = st.totalCount;
 
-    // ===== 아래부터는 네가 만든 "디자인 로직" 그대로 =====
+    // 아래부터는 네가 만든 "디자인 로직" 그대로
 
     // 창(window) 시작은 항상 25의 배수: 0~24→0, 25~49→25, 50~74→50 ...
     final int windowStart = (studyCount ~/ 25) * 25;
@@ -53,7 +53,8 @@ class StudyCountWidget extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.only(left: 14), // ← 제목을 살짝 오른쪽으로
+          // 제목을 살짝 오른쪽으로 이동해 좌측 여백과 맞춘다
+          padding: const EdgeInsets.only(left: 14),
           child: Text(
             '나의 총 공부 횟수',
             style: AppTextStyles.bodyBold.copyWith(

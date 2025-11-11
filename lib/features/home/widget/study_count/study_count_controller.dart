@@ -7,7 +7,8 @@ class StudyCountState {
   final bool loading;
   final bool loadedOnce;
   final String? error;
-  final int totalCount; // ← 이 이름으로 고정
+  // API 응답과 맞추기 위해 필드명을 totalCount로 고정
+  final int totalCount;
 
   const StudyCountState({
     this.loading = false,

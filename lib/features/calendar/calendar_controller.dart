@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:moods/features/calendar/calendar_service.dart';
 
-/// ===== Model =====
+/// Model
 class CalendarRecord {
   final String recordId;
   final DateTime date;
@@ -23,7 +23,7 @@ class CalendarRecord {
   });
 }
 
-/// ===== Safe parsers =====
+/// Safe parsers
 int _asInt(dynamic v, [int fallback = 0]) {
   if (v is int) return v;
   if (v is num) return v.toInt();
@@ -90,7 +90,7 @@ CalendarRecord mapToCalendarRecord(Map<String, dynamic> m) {
   );
 }
 
-/// ===== State =====
+/// State
 class CalendarState {
   final DateTime month; // 기준 월(1일)
   final bool loading;
@@ -119,7 +119,7 @@ class CalendarState {
   }
 }
 
-/// ===== Controller (Provider는 providers.dart에서만 정의!) =====
+/// Controller (Provider는 providers.dart에서만 정의!)
 class CalendarController extends StateNotifier<CalendarState> {
   final Ref ref;
   final CalendarService _svc;
@@ -130,14 +130,14 @@ class CalendarController extends StateNotifier<CalendarState> {
 
   CalendarController(this.ref, this._svc, {required DateTime initialMonth})
       : super(CalendarState(month: initialMonth)) {
-    // ✅ 컨트롤러 생성 시 즉시 데이터 로드
+    // 컨트롤러 생성 시 즉시 데이터 로드
     fetchMonth();
   }
 
-  /// ✅ 표시 규칙
-  /// - 1시간 이상  → "H시간 M분" (초 제외)
-  /// - 1분 이상   → "M분 S초"   (시간 제외)
-  /// - 1분 미만   → "S초"
+  /// 표시 규칙
+  /// - 1시간 이상 → "H시간 M분" (초 제외)
+  /// - 1분 이상 → "M분 S초" (시간 제외)
+  /// - 1분 미만 → "S초"
   String formatHHMM(int seconds) {
     final total = seconds < 0 ? 0 : seconds;
     final h = total ~/ 3600;

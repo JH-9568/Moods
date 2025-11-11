@@ -103,7 +103,7 @@ class _CalendarDatePickerDialogState extends State<_CalendarDatePickerDialog> {
                     clipBehavior: Clip.none,
                     alignment: Alignment.center,
                     children: [
-                      // ✅ 중앙 하이라이트 바
+                      // 중앙 하이라이트 바
                       const SizedBox(
                         width: 296,
                         height: 28,
@@ -115,7 +115,7 @@ class _CalendarDatePickerDialogState extends State<_CalendarDatePickerDialog> {
                         ),
                       ),
 
-                      // ✅ 휠 (offset으로 조정 가능)
+                      // 휠 (offset으로 조정 가능)
                       Row(
                         children: [
                           // 왼쪽(년도)

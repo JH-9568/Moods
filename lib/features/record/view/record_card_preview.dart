@@ -365,7 +365,8 @@ class RecordCardPreviewScreen extends ConsumerWidget {
 class _RecordCardOverlay extends StatelessWidget {
   final RecordCardData data;
   final WidgetRef ref;
-  final RecordCardPreviewOrigin origin; // ✅ 출처
+  // 프리뷰를 띄운 출처에 따라 동작을 분기
+  final RecordCardPreviewOrigin origin;
 
   const _RecordCardOverlay({
     required this.data,

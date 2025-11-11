@@ -49,7 +49,8 @@ class MySpaceRank {
       userRank: (j['user_rank'] ?? 0) as int,
       totalUsers: (j['total_users'] ?? 0) as int,
       myStudyCount: (j['my_study_count'] ?? 0) as int,
-      myTotalRaw: rawNum, // ← seconds 로 해석
+      // 초 단위 누적 시간을 그대로 저장
+      myTotalRaw: rawNum,
       rankPercentage: (j['rank_percentage'] ?? 0) as int,
     );
   }
