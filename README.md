@@ -1,16 +1,59 @@
-# moods
+# Moods — 공간 기반 공부 기록 & 추천 앱
 
-Artistic Software Project : Moods
+> **"공간의 무드가 공부 효율을 바꾼다."**  
+> Moods는 단순한 공부 타이머가 아니라, 내가 공부한 **공간의 분위기와 감정**을 기록하고  
+> 나에게 맞는 공부 장소를 추천해주는 감성 기반 루틴 관리 서비스입니다.
+> ## 👥 팀 구성
 
-## Getting Started
+| 분야 | 이름 | 역할 |
+|------|------|------|
+| **Design** | **최윤아** | 기획, 레이아웃, UI/UX 디자인, 디자인 |
+| **FE** | **정진형** | 기획, 레이아웃, 화면 UI 구현 + API 연동(Auth, Record, Photos, Session), Goroute, Riverpod |
+| **FE** | **유현민** | 기획, 레이아웃, 화면 UI 구현 + API 연동(Home, Mypage, Stats), Goroute, Riverpod |
+| **BE** | **정대균** | 기획, 레이아웃, API 구현(공부기록, 공부 통계, 사진 관리), DB 구축 |
+| **BE** | **김회광** | 기획, 레이아웃, API 구현(인증/회원관리, 공간 관리, 공간 피드백), DB 구축 |
 
-This project is a starting point for a Flutter application.
+<img width="1904" height="2696" alt="KakaoTalk_Photo_2025-11-11-14-17-31-1" src="https://github.com/user-attachments/assets/d05e29c0-96ca-42e2-8a4f-cf2312c6a453" />
 
-A few resources to get you started if this is your first Flutter project:
+---
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+## 프로젝트 개요
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+| 항목 | 내용 |
+|------|------|
+| **프로젝트명** | Moods |
+| **기간** | 2025.03 ~ 2025.11 |
+| **기술 스택** | Flutter, Dart, Riverpod, GoRouting / Express.js, Supabase, Redis, Docker Compose |
+| **핵심 가치** | 감정과 공간을 결합한 “공부 경험 기록” 플랫폼 |
+
+---
+[예소 최종 ppt.pdf](https://github.com/user-attachments/files/23470223/ppt.pdf) (최종발표본) 
+<img width="1586" height="889" alt="스크린샷 2025-11-11 오후 2 34 34" src="https://github.com/user-attachments/assets/0e3ca895-de3f-47c4-8d92-a1add73f5029" />
+<img width="1587" height="893" alt="스크린샷 2025-11-11 오후 2 34 45" src="https://github.com/user-attachments/assets/6856d793-440f-45f9-b19e-d1a47d3ea475" />
+## 주요 기능
+
+### 1️⃣ 공부 기록
+- **기록 카드:** 날짜, 공부 내용, 감정/분위기 태그, 위치 정보  
+- **캘린더 뷰:** 일별 공부 카드 모아보기  
+- **감정 태그:** 😌 만족 / 😵 지침 / 💪 집중 / 😤 혼잡  
+- **분석 리포트:** 누적 공부시간, 공간별 집중도, 감정 흐름 시각화  
+
+### 2️⃣ 공간 추천
+- 사용자 카드 데이터 기반 성향 분석  
+- **추천 기준:** 조용함, 조도, 커뮤니티 선호도 등  
+- **Rule-based 추천 → 향후 ML 모델 적용 계획**  
+- 공간 정보 DB: 좌석 구조, 콘센트, 가격, 운영시간, 혼잡도  
+
+### 3️⃣ 공간 탐색 (지도 기반)
+- 주변 카페/도서관/스터디카페 탐색  
+- 공간별 상세 페이지: 위치, 운영시간, 리뷰, 유저 카드 목록  
+- Flutter 지도 위젯 연동, 실시간 위치 기반 탐색  
+
+### 4️⃣ 커뮤니티 요소
+- 카드 공유 기능 (인스타 스타일 썸네일)  
+- 뱃지 시스템: “특정 공간 5회 방문”, “누적 공부 10시간” 등  
+- 공간별 공부 인증 피드  
+
+---
+
+
